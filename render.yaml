@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: nova-markat
+    runtime: python
+    plan: free
+    buildCommand: "./build.sh"
+    startCommand: "gunicorn config.wsgi:application"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.13.5
+      - key: DEBUG
+        value: "False"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: nova-markat-db
+          property: connectionString
+
+databases:
+  - name: nova-markat-db
+    plan: free

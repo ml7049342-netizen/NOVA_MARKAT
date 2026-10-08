@@ -1,0 +1,1 @@
+{% extends 'base.html' %}{% block content %}<section class="section"><h1>الطلبات</h1>{% for o in orders %}<div class="order"><div><b>#{{o.id}}</b> · {{o.created_at|date:'Y-m-d H:i'}} · {{o.get_status_display}}</div><div>{{o.total}} دج · {{o.get_wilaya_display}} · الدفع عند الاستلام</div></div>{% empty %}<p>لا توجد طلبات.</p>{% endfor %}</section>{% endblock %}

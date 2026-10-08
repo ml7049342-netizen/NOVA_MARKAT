@@ -1,0 +1,1 @@
+{% extends 'base.html' %}{% block content %}<section class="form-card"><h1>إنشاء حساب NOVA MARKAT</h1><p>اختر دورك الآن، ويمكنك استخدام المنصة دون اشتراك إلزامي.</p><form method="post">{% csrf_token %}{{form.as_p}}<button class="gold">إنشاء الحساب</button></form></section>{% endblock %}

@@ -1,0 +1,1 @@
+{% extends 'base.html' %}{% block content %}<section class="section"><h1>لوحة المشتري</h1><div class="stats"><div>الدور<strong>مشتري</strong></div><div>آخر الطلبات<strong>{{orders|length}}</strong></div></div><a class="btn gold" href="{% url 'home' %}">تصفح المنتجات</a></section>{% endblock %}

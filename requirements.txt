@@ -1,0 +1,9 @@
+Django>=5.2,<6
+Pillow>=11
+python-dotenv>=1.0
+django-cors-headers>=4.7
+argon2-cffi>=25
+gunicorn>=23
+whitenoise>=6.9
+dj-database-url>=2.3
+psycopg[binary]>=3.2

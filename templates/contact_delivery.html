@@ -1,0 +1,1 @@
+{% extends 'base.html' %}{% block content %}<section class="form-card"><h1>التواصل مع {{company.name}}</h1><form method="post">{% csrf_token %}<textarea name="message" required placeholder="اكتب طلبك أو تفاصيل التعاقد..."></textarea><button class="gold">إرسال طلب التعاقد</button></form></section>{% endblock %}

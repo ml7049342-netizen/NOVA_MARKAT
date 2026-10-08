@@ -1,0 +1,1 @@
+{% extends 'base.html' %}{% block content %}<section class="section"><h1>الإشعارات</h1>{% for n in notifications %}<div class="notification"><b>{{n.title}}</b><p>{{n.body}}</p><small>{{n.created_at|date:'Y-m-d H:i'}}</small></div>{% empty %}<p>لا توجد إشعارات.</p>{% endfor %}</section>{% endblock %}
