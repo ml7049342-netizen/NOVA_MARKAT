@@ -69,7 +69,8 @@ DATABASES = {
     "default": dj_database_url.config(
         default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
         conn_max_age=600,
-        ssl_require=not DEBUG,
+        # SQLite is used in local/CI builds; require TLS only for configured database URLs.
+        ssl_require=bool(os.getenv("DATABASE_URL")) and not DEBUG,
     )
 }
 
@@ -103,7 +104,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 CORS_ALLOW_ALL_ORIGINS = False
 CSRF_COOKIE_SECURE = not DEBUG
-CSRF_COOKIE_HTTPONLY = False  # The storefront reads Django's returned CSRF token, not this cookie.
+CSRF_COOKIE_HTTPONLY = True  # The storefront uses the token returned by /api/csrf/.
 CSRF_COOKIE_SAMESITE = "Lax"
 SESSION_COOKIE_SECURE = not DEBUG
 SESSION_COOKIE_HTTPONLY = True
