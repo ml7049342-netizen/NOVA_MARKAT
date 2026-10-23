@@ -65,14 +65,23 @@ WSGI_APPLICATION = "config.wsgi.application"
 ASGI_APPLICATION = "config.asgi.application"
 
 import dj_database_url
-DATABASES = {
-    "default": dj_database_url.config(
-        default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
-        conn_max_age=600,
-        # SQLite is used in local/CI builds; require TLS only for configured database URLs.
-        ssl_require=bool(os.getenv("DATABASE_URL")) and not DEBUG,
-    )
-}
+DATABASE_URL = os.getenv("DATABASE_URL")
+if DATABASE_URL:
+    DATABASES = {
+        "default": dj_database_url.config(
+            default=DATABASE_URL,
+            conn_max_age=600,
+            ssl_require=not DEBUG,
+        )
+    }
+else:
+    # Do not pass PostgreSQL SSL options to SQLite in local builds or CI.
+    DATABASES = {
+        "default": dj_database_url.config(
+            default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
+            conn_max_age=600,
+        )
+    }
 
 AUTH_USER_MODEL = "store.User"
 LOGIN_URL = "/login/"
