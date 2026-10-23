@@ -1,0 +1,154 @@
+[build]
+  publish = "."
+
+# Proxy the storefront API and Django pages through the same Netlify origin.
+# This lets the browser keep Django session/CSRF cookies on the storefront domain.
+[[redirects]]
+  from = "/api/*"
+  to = "https://nova-markat-staging.onrender.com/api/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/static/*"
+  to = "https://nova-markat-staging.onrender.com/static/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/media/*"
+  to = "https://nova-markat-staging.onrender.com/media/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/login"
+  to = "https://nova-markat-staging.onrender.com/login/"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/login/"
+  to = "https://nova-markat-staging.onrender.com/login/"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/register"
+  to = "https://nova-markat-staging.onrender.com/register/"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/register/"
+  to = "https://nova-markat-staging.onrender.com/register/"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/cart"
+  to = "https://nova-markat-staging.onrender.com/cart/"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/cart/"
+  to = "https://nova-markat-staging.onrender.com/cart/"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/checkout"
+  to = "https://nova-markat-staging.onrender.com/checkout/"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/checkout/"
+  to = "https://nova-markat-staging.onrender.com/checkout/"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/orders"
+  to = "https://nova-markat-staging.onrender.com/orders/"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/orders/"
+  to = "https://nova-markat-staging.onrender.com/orders/"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/dashboard"
+  to = "https://nova-markat-staging.onrender.com/dashboard/"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/dashboard/"
+  to = "https://nova-markat-staging.onrender.com/dashboard/"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/delivery"
+  to = "https://nova-markat-staging.onrender.com/delivery/"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/delivery/"
+  to = "https://nova-markat-staging.onrender.com/delivery/"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/delivery/*"
+  to = "https://nova-markat-staging.onrender.com/delivery/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/notifications"
+  to = "https://nova-markat-staging.onrender.com/notifications/"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/notifications/"
+  to = "https://nova-markat-staging.onrender.com/notifications/"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/products/*"
+  to = "https://nova-markat-staging.onrender.com/products/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/seller/*"
+  to = "https://nova-markat-staging.onrender.com/seller/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/supplier/*"
+  to = "https://nova-markat-staging.onrender.com/supplier/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/logout"
+  to = "https://nova-markat-staging.onrender.com/logout/"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/logout/"
+  to = "https://nova-markat-staging.onrender.com/logout/"
+  status = 200
+  force = true
