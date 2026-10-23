@@ -27,7 +27,7 @@ def products(request):
             "description": p.description,
             "price": str(p.price),
             "stock": p.stock,
-            "image": request.build_absolute_uri(p.main_image.url) if p.main_image else "",
+            "image": p.main_image.url if p.main_image else "",
             "seller": p.seller.username,
             "url": f"/products/{p.pk}/",
         })
