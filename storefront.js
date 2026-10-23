@@ -186,22 +186,25 @@
       localStorage.removeItem("novaOrders");
       localStorage.removeItem("novaLastOrder");
       localStorage.removeItem("novaContactRequests");
-      cart = {};
-    } catch (_) { cart = {}; }
+    } catch (_) {}
     try {
       await getCsrf();
-      const [productsResponse, companiesResponse] = await Promise.all([
+      const [productsResponse, companiesResponse, cartResponse] = await Promise.all([
         fetch("/api/products/", { credentials: "same-origin" }),
-        fetch("/api/delivery-companies/", { credentials: "same-origin" })
+        fetch("/api/delivery-companies/", { credentials: "same-origin" }),
+        fetch("/api/cart/", { credentials: "same-origin" })
       ]);
-      if (!productsResponse.ok || !companiesResponse.ok) throw new Error("تعذر تحميل بيانات المتجر.");
+      if (!productsResponse.ok || !companiesResponse.ok || !cartResponse.ok) throw new Error("تعذر تحميل بيانات المتجر.");
       const productData = await productsResponse.json();
       const companyData = await companiesResponse.json();
+      const cartData = await cartResponse.json();
       liveProducts = Array.isArray(productData.products) ? productData.products : [];
       liveCompanies = Array.isArray(companyData.companies) ? companyData.companies : [];
+      cart = cartData.items && typeof cartData.items === "object" ? cartData.items : {};
+      try { localStorage.setItem("novaCart", JSON.stringify(cart)); } catch (_) {}
       window.renderProducts();
       window.renderDelivery();
-      if ($("cartCount")) $("cartCount").textContent = "0";
+      if ($("cartCount")) $("cartCount").textContent = String(cartData.cartCount || 0);
     } catch (error) {
       liveProducts = [];
       liveCompanies = [];
