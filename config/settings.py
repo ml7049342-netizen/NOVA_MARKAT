@@ -65,8 +65,8 @@ WSGI_APPLICATION = "config.wsgi.application"
 ASGI_APPLICATION = "config.asgi.application"
 
 import dj_database_url
-DATABASE_URL = os.getenv("DATABASE_URL")
-if DATABASE_URL:
+DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
+if DATABASE_URL and not DATABASE_URL.startswith("sqlite:"):
     DATABASES = {
         "default": dj_database_url.config(
             default=DATABASE_URL,
@@ -75,10 +75,10 @@ if DATABASE_URL:
         )
     }
 else:
-    # Do not pass PostgreSQL SSL options to SQLite in local builds or CI.
+    # Never pass PostgreSQL SSL options to a SQLite URL, including Render's current staging fallback.
     DATABASES = {
         "default": dj_database_url.config(
-            default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
+            default=DATABASE_URL or f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
             conn_max_age=600,
         )
     }
