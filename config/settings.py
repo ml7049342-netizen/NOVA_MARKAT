@@ -11,7 +11,7 @@ if not SECRET_KEY:
     raise RuntimeError("SECRET_KEY مطلوب في ملف .env عندما DEBUG=False")
 ALLOWED_HOSTS = [x.strip() for x in os.getenv("ALLOWED_HOSTS", "127.0.0.1,localhost").split(",") if x.strip()]
 RENDER_HOST = os.getenv("RENDER_EXTERNAL_HOSTNAME")
-CSRF_TRUSTED_ORIGINS = []
+CSRF_TRUSTED_ORIGINS = ["https://nova-markat-dz.netlify.app"]
 if RENDER_HOST:
     ALLOWED_HOSTS.append(RENDER_HOST)
     CSRF_TRUSTED_ORIGINS.append(f"https://{RENDER_HOST}")
