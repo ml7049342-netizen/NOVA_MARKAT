@@ -67,3 +67,33 @@ def cart_add(request, pk):
     cart[key] = next_quantity
     request.session["cart"] = cart
     return JsonResponse({"ok": True, "quantity": next_quantity, "cartCount": sum(int(v) for v in cart.values())})
+
+
+@require_POST
+def cart_set(request):
+    try:
+        payload = json.loads(request.body or "{}")
+        requested = payload.get("items", {})
+        if not isinstance(requested, dict):
+            raise ValueError
+    except (ValueError, TypeError, json.JSONDecodeError):
+        return JsonResponse({"error": "بيانات السلة غير صالحة."}, status=400)
+
+    clean = {}
+    for raw_id, raw_quantity in requested.items():
+        try:
+            product_id = int(raw_id)
+            quantity = int(raw_quantity)
+        except (ValueError, TypeError):
+            return JsonResponse({"error": "بيانات منتج غير صالحة."}, status=400)
+        if quantity <= 0:
+            continue
+        if quantity > 99:
+            return JsonResponse({"error": "الكمية أكبر من الحد المسموح."}, status=400)
+        product = Product.objects.filter(pk=product_id, active=True, stock__gt=0).first()
+        if product is None or quantity > product.stock:
+            return JsonResponse({"error": "أحد المنتجات لم يعد متاحًا بهذه الكمية."}, status=400)
+        clean[str(product_id)] = quantity
+
+    request.session["cart"] = clean
+    return JsonResponse({"ok": True, "cartCount": sum(clean.values())})
