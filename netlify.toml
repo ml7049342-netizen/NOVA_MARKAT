@@ -10,6 +10,12 @@
   force = true
 
 [[redirects]]
+  from = "/static/*"
+  to = "https://nova-markat.onrender.com/static/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
   from = "/media/*"
   to = "https://nova-markat.onrender.com/media/:splat"
   status = 200
