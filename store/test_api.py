@@ -1,9 +1,9 @@
 import json
 
-from django.test import TestCase
+from django.test import Client, TestCase
 from django.urls import reverse
 
-from .models import Category, Product, User
+from .models import Category, Order, Product, User
 
 
 class StorefrontApiTests(TestCase):
@@ -12,6 +12,11 @@ class StorefrontApiTests(TestCase):
             username="seller-test",
             password="SafeTestPass123!",
             role="seller",
+        )
+        self.buyer = User.objects.create_user(
+            username="buyer-test",
+            password="SafeTestPass123!",
+            role="buyer",
         )
         self.category = Category.objects.create(name="اختبار", active=True)
         self.product = Product.objects.create(
@@ -22,6 +27,14 @@ class StorefrontApiTests(TestCase):
             price="1250.00",
             stock=5,
             active=True,
+        )
+
+    def post_json(self, url, payload, client=None):
+        client = client or self.client
+        return client.post(
+            url,
+            data=json.dumps(payload),
+            content_type="application/json",
         )
 
     def test_catalog_returns_only_available_real_products(self):
@@ -40,33 +53,90 @@ class StorefrontApiTests(TestCase):
         self.assertEqual(response.json()["products"], [])
 
     def test_cart_add_requires_post_and_persists_in_session(self):
-        response = self.client.post(
-            reverse("api_cart_add", args=[self.product.pk]),
-            data=json.dumps({"quantity": 2}),
-            content_type="application/json",
+        response = self.post_json(
+            reverse("api_cart_add", args=[self.product.pk]), {"quantity": 2}
         )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["quantity"], 2)
         self.assertEqual(self.client.session["cart"][str(self.product.pk)], 2)
 
     def test_cart_rejects_quantity_above_stock(self):
-        response = self.client.post(
-            reverse("api_cart_add", args=[self.product.pk]),
-            data=json.dumps({"quantity": 6}),
-            content_type="application/json",
+        response = self.post_json(
+            reverse("api_cart_add", args=[self.product.pk]), {"quantity": 6}
         )
         self.assertEqual(response.status_code, 400)
         self.assertNotIn(str(self.product.pk), self.client.session.get("cart", {}))
 
-    def test_cart_set_rejects_unknown_products(self):
-        response = self.client.post(
-            reverse("api_cart_set"),
-            data=json.dumps({"items": {"999999": 1}}),
+    def test_cart_rejects_malformed_json_and_boolean_quantity(self):
+        malformed = self.client.post(
+            reverse("api_cart_add", args=[self.product.pk]),
+            data="{broken",
             content_type="application/json",
         )
+        boolean_quantity = self.post_json(
+            reverse("api_cart_add", args=[self.product.pk]), {"quantity": True}
+        )
+        self.assertEqual(malformed.status_code, 400)
+        self.assertEqual(boolean_quantity.status_code, 400)
+
+    def test_cart_set_rejects_unknown_products(self):
+        response = self.post_json(reverse("api_cart_set"), {"items": {"999999": 1}})
         self.assertEqual(response.status_code, 400)
 
     def test_csrf_endpoint_returns_token(self):
         response = self.client.get(reverse("api_csrf"))
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.json().get("csrfToken"))
+
+    def test_csrf_protects_cart_mutations(self):
+        strict_client = Client(enforce_csrf_checks=True)
+        response = self.post_json(
+            reverse("api_cart_add", args=[self.product.pk]), {"quantity": 1},
+            client=strict_client,
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_checkout_does_not_create_partial_order_for_missing_product(self):
+        self.client.force_login(self.buyer)
+        session = self.client.session
+        session["cart"] = {str(self.product.pk): 1, "999999": 1}
+        session.save()
+        response = self.client.post(
+            reverse("checkout"),
+            {"wilaya": "31", "address": "عنوان اختبار", "phone": "0550000000"},
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(Order.objects.count(), 0)
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.stock, 5)
+
+    def test_checkout_rejects_quantity_above_stock_without_order(self):
+        self.client.force_login(self.buyer)
+        session = self.client.session
+        session["cart"] = {str(self.product.pk): 6}
+        session.save()
+        self.client.post(
+            reverse("checkout"),
+            {"wilaya": "31", "address": "عنوان اختبار", "phone": "0550000000"},
+        )
+        self.assertEqual(Order.objects.count(), 0)
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.stock, 5)
+
+    def test_checkout_creates_order_and_decrements_stock(self):
+        self.client.force_login(self.buyer)
+        session = self.client.session
+        session["cart"] = {str(self.product.pk): 2}
+        session.save()
+        response = self.client.post(
+            reverse("checkout"),
+            {"wilaya": "31", "address": "عنوان اختبار", "phone": "0550000000"},
+        )
+        self.assertEqual(response.status_code, 302)
+        order = Order.objects.get()
+        self.assertEqual(order.buyer, self.buyer)
+        self.assertEqual(str(order.total), "2500.00")
+        self.assertEqual(order.items.get().quantity, 2)
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.stock, 3)
+        self.assertEqual(self.client.session["cart"], {})
