@@ -83,6 +83,15 @@ class StorefrontApiTests(TestCase):
         response = self.post_json(reverse("api_cart_set"), {"items": {"999999": 1}})
         self.assertEqual(response.status_code, 400)
 
+    def test_cart_get_restores_server_session_cart(self):
+        session = self.client.session
+        session["cart"] = {str(self.product.pk): 2, "999999": 1}
+        session.save()
+        response = self.client.get(reverse("api_cart_set"))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["items"], {str(self.product.pk): 2})
+        self.assertEqual(response.json()["cartCount"], 2)
+
     def test_csrf_endpoint_returns_token(self):
         response = self.client.get(reverse("api_csrf"))
         self.assertEqual(response.status_code, 200)
