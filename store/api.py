@@ -3,7 +3,7 @@ import json
 from django.http import JsonResponse
 from django.middleware.csrf import get_token
 from django.views.decorators.csrf import ensure_csrf_cookie
-from django.views.decorators.http import require_GET, require_POST
+from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
 from .models import DeliveryCompany, Product
 
@@ -112,8 +112,24 @@ def cart_add(request, pk):
     })
 
 
-@require_POST
+@require_http_methods(["GET", "POST"])
 def cart_set(request):
+    if request.method == "GET":
+        cart = _session_cart(request)
+        available = Product.objects.filter(
+            pk__in=[int(product_id) for product_id in cart],
+            active=True,
+            stock__gt=0,
+        )
+        stock_by_id = {str(product.pk): product.stock for product in available}
+        clean = {
+            product_id: min(quantity, stock_by_id[product_id])
+            for product_id, quantity in cart.items()
+            if product_id in stock_by_id
+        }
+        request.session["cart"] = clean
+        return JsonResponse({"items": clean, "cartCount": sum(clean.values())})
+
     payload = _parse_json_body(request)
     if payload is None:
         return JsonResponse({"error": "بيانات السلة غير صالحة."}, status=400)
