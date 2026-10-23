@@ -26,6 +26,8 @@ const products=[
 const companies=[{name:'NOVA EXPRESS',rating:4.9,w:'الجزائر، وهران، تلمسان',cod:true},{name:'DZ FAST DELIVERY',rating:4.7,w:'الولايات الشمالية',cod:true},{name:'WEST LOGISTICS',rating:4.8,w:'الغرب الجزائري',cod:true},{name:'SAHARA SHIP',rating:4.6,w:'الجنوب والولايات الداخلية',cod:true}];
 function readStoredJSON(key,fallback){try{const value=localStorage.getItem(key);return value?JSON.parse(value):fallback}catch(_){return fallback}}
 let cart=readStoredJSON('novaCart',{});
+// Remove legacy demo-only order/contact records from this browser.
+try{localStorage.removeItem('novaOrders');localStorage.removeItem('novaLastOrder');localStorage.removeItem('novaContactRequests')}catch(_){}
 if(!cart||typeof cart!=='object'||Array.isArray(cart))cart={};
 function saveCart(){try{localStorage.setItem('novaCart',JSON.stringify(cart))}catch(_){toast('تعذر حفظ السلة على هذا الجهاز')}}
 const money=n=>new Intl.NumberFormat('ar-DZ').format(n)+' دج';
