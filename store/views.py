@@ -27,48 +27,150 @@ def product_detail(request,pk):
     return render(request,"product.html",{"product":product,"reviews":product.reviews.select_related("buyer")})
 
 @require_POST
-def add_to_cart(request,pk):
-    get_object_or_404(Product,pk=pk,active=True)
-    cart=request.session.get("cart",{}); key=str(pk); cart[key]=int(cart.get(key,0))+1; request.session["cart"]=cart
+def add_to_cart(request, pk):
+    product = get_object_or_404(Product, pk=pk, active=True, stock__gt=0)
+    cart = request.session.get("cart", {})
+    if not isinstance(cart, dict):
+        cart = {}
+    key = str(pk)
+    try:
+        current = int(cart.get(key, 0))
+    except (ValueError, TypeError):
+        current = 0
+    if current + 1 > min(product.stock, 99):
+        messages.error(request, "الكمية المطلوبة تتجاوز المخزون المتاح.")
+    elif len(cart) >= 50 and key not in cart:
+        messages.error(request, "وصلت السلة إلى الحد الأقصى من المنتجات.")
+    else:
+        cart[key] = current + 1
+        request.session["cart"] = cart
     return redirect("cart")
 
+
 def cart(request):
-    data=request.session.get("cart",{})
-    if request.method=="POST":
-        for key,val in request.POST.items():
-            if key.startswith("qty_"):
-                pid=key[4:]
-                try: q=max(0,int(val))
-                except: q=1
-                if q: data[pid]=q
-                else: data.pop(pid,None)
-        request.session["cart"]=data
+    data = request.session.get("cart", {})
+    if not isinstance(data, dict):
+        data = {}
+    if request.method == "POST":
+        cleaned = {}
+        for key, val in request.POST.items():
+            if not key.startswith("qty_"):
+                continue
+            pid = key[4:]
+            if not pid.isdigit():
+                continue
+            try:
+                quantity = int(val)
+            except (ValueError, TypeError):
+                messages.error(request, "تأكد من إدخال كمية صحيحة.")
+                return redirect("cart")
+            product = Product.objects.filter(pk=int(pid), active=True, stock__gt=0).first()
+            if quantity < 0 or quantity > 99 or (quantity > 0 and (product is None or quantity > product.stock)):
+                messages.error(request, "إحدى الكميات غير متاحة في المخزون.")
+                return redirect("cart")
+            if quantity > 0:
+                cleaned[pid] = quantity
+        if len(cleaned) > 50:
+            messages.error(request, "وصلت السلة إلى الحد الأقصى من المنتجات.")
+            return redirect("cart")
+        request.session["cart"] = cleaned
         return redirect("cart")
-    products=Product.objects.filter(id__in=data.keys(),active=True); rows=[]; total=Decimal("0")
-    for p in products:
-        q=int(data[str(p.id)]); subtotal=p.price*q; total+=subtotal; rows.append((p,q,subtotal))
-    return render(request,"cart.html",{"rows":rows,"total":total})
+    rows = []
+    total = Decimal("0")
+    products = Product.objects.filter(id__in=list(data.keys()), active=True, stock__gt=0)
+    valid_cart = {}
+    for product in products:
+        try:
+            quantity = int(data[str(product.id)])
+        except (KeyError, ValueError, TypeError):
+            continue
+        if quantity < 1 or quantity > 99:
+            continue
+        quantity = min(quantity, product.stock)
+        valid_cart[str(product.id)] = quantity
+        subtotal = product.price * quantity
+        total += subtotal
+        rows.append((product, quantity, subtotal))
+    if valid_cart != data:
+        request.session["cart"] = valid_cart
+    return render(request, "cart.html", {"rows": rows, "total": total})
+
 
 @login_required
 @transaction.atomic
 def checkout(request):
-    data=request.session.get("cart",{})
-    if not data: messages.error(request,"السلة فارغة."); return redirect("cart")
-    if request.method=="POST":
-        wilaya=request.POST.get("wilaya",""); address=request.POST.get("address","").strip(); phone=request.POST.get("phone","").strip()
-        if not wilaya or not address or not phone: messages.error(request,"أكمل بيانات التوصيل."); return redirect("checkout")
-        products=Product.objects.select_for_update().filter(id__in=data.keys(),active=True)
-        order=Order.objects.create(buyer=request.user,wilaya=wilaya,address=address,phone=phone,payment_method="cash_on_delivery")
-        total=Decimal("0")
-        for p in products:
-            q=int(data[str(p.id)])
-            if q>p.stock: transaction.set_rollback(True); messages.error(request,f"الكمية غير متوفرة: {p.name}"); return redirect("cart")
-            p.stock-=q; p.save(update_fields=["stock"]); OrderItem.objects.create(order=order,product=p,quantity=q,unit_price=p.price); total+=p.price*q
-            Notification.objects.create(user=p.seller,title="طلب جديد",body=f"لديك طلب جديد #{order.id}.")
-        order.total=total; order.save(update_fields=["total"]); request.session["cart"]={}
-        Notification.objects.create(user=request.user,title="تم استلام طلبك",body=f"تم إنشاء الطلب #{order.id} والدفع عند الاستلام.")
-        messages.success(request,f"تم إنشاء الطلب #{order.id}."); return redirect("orders")
-    return render(request,"checkout.html",{"wilayas":WILAYAS})
+    raw_cart = request.session.get("cart", {})
+    if not isinstance(raw_cart, dict) or not raw_cart:
+        messages.error(request, "السلة فارغة.")
+        return redirect("cart")
+
+    if request.method == "POST":
+        wilaya = request.POST.get("wilaya", "").strip()
+        address = request.POST.get("address", "").strip()
+        phone = request.POST.get("phone", "").strip()
+        valid_wilayas = {value for value, _label in WILAYAS}
+        if wilaya not in valid_wilayas or not address or len(address) > 1000 or not phone or len(phone) > 30:
+            messages.error(request, "تحقق من الولاية والعنوان ورقم الهاتف.")
+            return redirect("checkout")
+
+        # Reject malformed/stale carts before creating any order or changing stock.
+        clean_cart = {}
+        for raw_id, raw_quantity in raw_cart.items():
+            try:
+                product_id = int(raw_id)
+                quantity = int(raw_quantity)
+            except (ValueError, TypeError, OverflowError):
+                messages.error(request, "السلة تحتوي بيانات غير صالحة. حدّث السلة ثم أعد المحاولة.")
+                return redirect("cart")
+            if product_id <= 0 or quantity < 1 or quantity > 99:
+                messages.error(request, "السلة تحتوي كمية غير صالحة.")
+                return redirect("cart")
+            clean_cart[product_id] = quantity
+        if len(clean_cart) > 50:
+            messages.error(request, "عدد المنتجات في السلة تجاوز الحد المسموح.")
+            return redirect("cart")
+
+        products = list(
+            Product.objects.select_for_update()
+            .filter(id__in=clean_cart.keys(), active=True)
+            .order_by("id")
+        )
+        if len(products) != len(clean_cart):
+            messages.error(request, "أحد المنتجات لم يعد متاحًا. راجع السلة قبل إتمام الطلب.")
+            return redirect("cart")
+        for product in products:
+            if clean_cart[product.id] > product.stock:
+                messages.error(request, f"الكمية غير متوفرة حاليًا: {product.name}")
+                return redirect("cart")
+
+        order = Order.objects.create(
+            buyer=request.user, wilaya=wilaya, address=address, phone=phone,
+            payment_method="cash_on_delivery",
+        )
+        total = Decimal("0")
+        for product in products:
+            quantity = clean_cart[product.id]
+            product.stock -= quantity
+            product.save(update_fields=["stock"])
+            OrderItem.objects.create(
+                order=order, product=product, quantity=quantity, unit_price=product.price
+            )
+            total += product.price * quantity
+            Notification.objects.create(
+                user=product.seller, title="طلب جديد", body=f"لديك طلب جديد #{order.id}."
+            )
+
+        order.total = total
+        order.save(update_fields=["total"])
+        request.session["cart"] = {}
+        Notification.objects.create(
+            user=request.user, title="تم استلام طلبك",
+            body=f"تم إنشاء الطلب #{order.id} والدفع عند الاستلام.",
+        )
+        messages.success(request, f"تم إنشاء الطلب #{order.id}.")
+        return redirect("orders")
+
+    return render(request, "checkout.html", {"wilayas": WILAYAS})
 
 @login_required
 def orders(request):
