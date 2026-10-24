@@ -25,7 +25,7 @@
         {% for value, label in form.avatar_choice.field.choices %}
           {% with avatar_path="avatars/"|add:value %}
             <label class="avatar-option" for="avatar-{{ forloop.counter }}">
-              <input type="radio" id="avatar-{{ forloop.counter }}" name="avatar_choice" value="{{ value }}" {% if form.avatar_choice.value == value %}checked{% endif %}>
+              <input type="radio" id="avatar-{{ forloop.counter }}" name="avatar_choice" value="{{ value }}" data-avatar-url="{% static avatar_path %}" {% if form.avatar_choice.value == value %}checked{% endif %}>
               <img src="{% static avatar_path %}" alt="" loading="lazy">
               <span>{{ label }}</span>
             </label>
@@ -42,7 +42,7 @@
   function updateAvatarPreview() {
     var selected = document.querySelector('input[name="avatar_choice"]:checked');
     if (selected) {
-      document.getElementById('avatar-preview').src = "{% static 'avatars/' %}" + selected.value;
+      document.getElementById('avatar-preview').src = selected.dataset.avatarUrl;
     }
   }
   document.querySelectorAll('input[name="avatar_choice"]').forEach(function (input) {
