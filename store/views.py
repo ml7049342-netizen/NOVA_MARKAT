@@ -121,8 +121,8 @@ def checkout(request):
         if not address or len(address) > 500 or not phone or len(phone) > 30:
             messages.error(request, "تحقق من العنوان ورقم الهاتف.")
             return redirect("checkout")
-        digits = re.sub(r"[\\s().-]", "", phone)
-        if not re.fullmatch(r"(?:\\+213|00213|0)(?:5|6|7)\\d{8}", digits):
+        digits = re.sub(r"[\s().-]", "", phone)
+        if not re.fullmatch(r"(?:\+213|00213|0)(?:5|6|7)\d{8}", digits):
             messages.error(request, "أدخل رقم هاتف جزائري صحيحًا.")
             return redirect("checkout")
 
