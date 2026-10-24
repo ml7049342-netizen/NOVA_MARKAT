@@ -8,7 +8,7 @@ from django.db import transaction
 from django.db.models import Q
 from django.views.decorators.http import require_POST
 from django.shortcuts import get_object_or_404, redirect, render
-from .forms import RegisterForm, ProductForm, SupplierProductForm, DeliveryCompanyForm
+from .forms import RegisterForm, ProductForm, SupplierProductForm, DeliveryCompanyForm, ProfileForm
 from .models import Product, DeliveryCompany, Notification, Order, OrderItem, DeliveryContractRequest, User, WILAYAS, Category, Review
 
 
@@ -324,6 +324,16 @@ def login_view(request):
         cache.set(cache_key, attempts + 1, 15 * 60)
         messages.error(request, "بيانات الدخول غير صحيحة.")
     return render(request, "login.html")
+
+
+@login_required
+def profile(request):
+    form = ProfileForm(request.POST or None, request.FILES or None, instance=request.user)
+    if form.is_valid():
+        form.save()
+        messages.success(request, "تم حفظ بيانات ملفك الشخصي بنجاح.")
+        return redirect("profile")
+    return render(request, "profile.html", {"form": form})
 
 
 @require_POST
