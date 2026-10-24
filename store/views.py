@@ -1,6 +1,5 @@
 from decimal import Decimal
 import re
-from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
@@ -10,7 +9,7 @@ from django.db.models import Q
 from django.views.decorators.http import require_POST
 from django.shortcuts import get_object_or_404, redirect, render
 from .forms import RegisterForm, ProductForm, SupplierProductForm, DeliveryCompanyForm
-from .models import Product, DeliveryCompany, Notification, Order, OrderItem, DeliveryContractRequest, User, SupplierProduct, WILAYAS, Category, Review
+from .models import Product, DeliveryCompany, Notification, Order, OrderItem, DeliveryContractRequest, User, WILAYAS, Category, Review
 
 
 def home(request):
@@ -175,7 +174,9 @@ def checkout(request):
 def orders(request):
     role = request.user.role
     base = Order.objects.prefetch_related("items__product").order_by("-created_at")
-    if role == "seller":
+    if role in {"seller", "supplier", "delivery"} and not request.user.is_verified:
+        orders_qs = base.filter(buyer=request.user)
+    elif role == "seller":
         orders_qs = base.filter(items__product__seller=request.user).distinct()
     elif role == "delivery":
         company = getattr(request.user, "delivery_company", None)
@@ -192,6 +193,9 @@ def orders(request):
 @login_required
 def dashboard(request):
     role = request.user.role
+    if role in {"seller", "supplier", "delivery"} and not request.user.is_verified:
+        messages.info(request, "تم إنشاء حسابك. هذا الدور بانتظار اعتماد الإدارة قبل تفعيل وظائفه.")
+        return redirect("home")
     if role == "seller":
         products = request.user.products.select_related("category")
         items = OrderItem.objects.filter(product__seller=request.user)
@@ -210,6 +214,9 @@ def dashboard(request):
 def seller_product_add(request):
     if request.user.role != "seller":
         return redirect("dashboard")
+    if not request.user.is_verified:
+        messages.error(request, "حساب البائع بانتظار اعتماد الإدارة.")
+        return redirect("home")
     form = ProductForm(request.POST or None, request.FILES or None)
     if form.is_valid():
         obj = form.save(commit=False)
@@ -224,6 +231,9 @@ def seller_product_add(request):
 def supplier_product_add(request):
     if request.user.role != "supplier":
         return redirect("dashboard")
+    if not request.user.is_verified:
+        messages.error(request, "حساب المورّد بانتظار اعتماد الإدارة.")
+        return redirect("home")
     form = SupplierProductForm(request.POST or None, request.FILES or None)
     if form.is_valid():
         obj = form.save(commit=False)
@@ -246,7 +256,7 @@ def delivery_setup(request):
         obj.wilayas = form.cleaned_data["wilayas"]
         obj.save()
         messages.success(request, "تم حفظ ملف شركة التوصيل، وسيظهر بعد التحقق الإداري.")
-        return redirect("dashboard")
+        return redirect("dashboard" if request.user.is_verified else "home")
     return render(request, "form.html", {"form": form, "title": "ملف شركة التوصيل"})
 
 
@@ -283,12 +293,18 @@ def register(request):
         return redirect("dashboard")
     form = RegisterForm(request.POST or None)
     if form.is_valid():
-        user = form.save()
-        login(request, user)
-        messages.success(request, "مرحبًا بك في NOVA MARKAT.")
-        return redirect("dashboard")
+        user = form.save(commit=False)
+        if user.role != "buyer":
+            user.is_verified = False
+        user.save()
+        form.save_m2m()
+        if user.role == "buyer":
+            login(request, user)
+            messages.success(request, "مرحبًا بك في NOVA MARKAT.")
+            return redirect("dashboard")
+        messages.success(request, "تم إنشاء الحساب. سيبقى دورك بانتظار اعتماد الإدارة قبل تفعيل وظائفه.")
+        return redirect("login")
     return render(request, "register.html", {"form": form})
-
 
 def login_view(request):
     if request.user.is_authenticated:
