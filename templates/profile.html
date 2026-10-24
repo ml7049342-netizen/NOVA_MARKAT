@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+{% block title %}ملفي الشخصي | NOVA MARKAT{% endblock %}
+{% block content %}
+<section class="form-card" aria-labelledby="profile-heading">
+  <h1 id="profile-heading">ملفي الشخصي</h1>
+  <p>حدّث اسم المستخدم والبريد الإلكتروني ورقم الهاتف والصورة الشخصية. لا يمكن تغيير دور الحساب من هذه الصفحة.</p>
+  {% if user.avatar %}<div class="profile-avatar" style="text-align:center;margin:20px 0"><img src="{{ user.avatar.url }}" alt="الصورة الشخصية الحالية" style="width:112px;height:112px;object-fit:cover;border-radius:50%;border:2px solid #d9b45b"></div>{% endif %}
+  <form method="post" enctype="multipart/form-data" novalidate>
+    {% csrf_token %}
+    {{ form.as_p }}
+    <p class="muted">الصورة: JPG أو PNG أو WEBP، بحد أقصى 2 ميغابايت.</p>
+    <button class="gold" type="submit">حفظ التغييرات</button>
+  </form>
+</section>
+{% endblock %}
