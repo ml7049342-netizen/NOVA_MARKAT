@@ -1,1 +1,50 @@
-{% load static %}<html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#080d15"><meta name="description" content="NOVA MARKAT — سوق إلكتروني جزائري يجمع المشترين والبائعين والموردين وشركات التوصيل."><link rel="icon" type="image/svg+xml" href="{% static 'logo.svg' %}"><title>{% block title %}NOVA MARKAT | سوق الجزائر الذكي{% endblock %}</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="{% static 'css/style.css' %}"></head><body><header><a class="brand" href="{% url 'home' %}" aria-label="NOVA MARKAT الصفحة الرئيسية"><img src="{% static 'logo.svg' %}" alt=""><span>NOVA <b>MARKAT</b></span></a><nav><a href="{% url 'home' %}">المتجر</a><a href="{% url 'delivery_companies' %}">شركات التوصيل</a>{% if user.is_authenticated %}<a href="{% url 'dashboard' %}">لوحتي</a><a href="{% url 'profile' %}">ملفي الشخصي</a><a href="{% url 'orders' %}">طلباتي</a><a href="{% url 'notifications' %}">الإشعارات</a><form method="post" action="{% url 'logout' %}" style="display:inline">{% csrf_token %}<button type="submit" class="nav-logout">خروج</button></form>{% else %}<a href="{% url 'login' %}">دخول</a><a class="gold" href="{% url 'register' %}">إنشاء حساب</a>{% endif %}<a class="cart" href="{% url 'cart' %}" aria-label="السلة">🛒</a></nav></header><main>{% for message in messages %}<div class="msg">{{message}}</div>{% endfor %}{% block content %}{% endblock %}</main><footer>NOVA MARKAT · منصة تجارة إلكترونية جزائرية متعددة الأطراف · الدفع عند الاستلام</footer></body></html>
+{% load static %}
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#080d15">
+  <meta name="description" content="NOVA MARKAT — سوق إلكتروني جزائري يجمع المشترين والبائعين والموردين وشركات التوصيل.">
+  <link rel="icon" type="image/svg+xml" href="{% static 'logo.svg' %}">
+  <title>{% block title %}NOVA MARKAT | سوق الجزائر الذكي{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="{% static 'css/style.css' %}">
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="{% url 'home' %}" aria-label="NOVA MARKAT الصفحة الرئيسية">
+      <img src="{% static 'logo.svg' %}" alt="">
+      <span>NOVA <b>MARKAT</b></span>
+    </a>
+    <nav class="main-nav" aria-label="التنقل الرئيسي">
+      <a class="nav-link {% if request.path == '/' %}is-active{% endif %}" href="{% url 'home' %}">المتجر</a>
+      <a class="nav-link" href="{% url 'home' %}#categories">التصنيفات</a>
+      <a class="nav-link {% if '/delivery/' in request.path %}is-active{% endif %}" href="{% url 'delivery_companies' %}">شركات التوصيل</a>
+      {% if user.is_authenticated %}
+        <a class="nav-link {% if '/dashboard/' in request.path %}is-active{% endif %}" href="{% url 'dashboard' %}">لوحتي</a>
+        <a class="nav-link {% if '/profile/' in request.path %}is-active{% endif %}" href="{% url 'profile' %}">ملفي الشخصي</a>
+        <a class="nav-link {% if '/orders/' in request.path %}is-active{% endif %}" href="{% url 'orders' %}">طلباتي</a>
+        <a class="nav-link {% if '/notifications/' in request.path %}is-active{% endif %}" href="{% url 'notifications' %}">الإشعارات</a>
+        <form method="post" action="{% url 'logout' %}" class="nav-logout-form">
+          {% csrf_token %}
+          <button type="submit" class="nav-logout">خروج</button>
+        </form>
+      {% else %}
+        <a class="nav-link" href="{% url 'login' %}">دخول</a>
+        <a class="nav-link nav-signup" href="{% url 'register' %}">إنشاء حساب</a>
+      {% endif %}
+      <a class="cart nav-cart" href="{% url 'cart' %}" aria-label="السلة" title="سلة التسوق">🛒 <span>السلة</span></a>
+    </nav>
+  </header>
+  <main>
+    {% for message in messages %}<div class="msg" role="status">{{ message }}</div>{% endfor %}
+    {% block content %}{% endblock %}
+  </main>
+  <footer class="site-footer">
+    <span>NOVA MARKAT</span>
+    <span>منصة تجارة إلكترونية جزائرية متعددة الأطراف</span>
+    <span>الدفع عند الاستلام</span>
+  </footer>
+</body>
+</html>
