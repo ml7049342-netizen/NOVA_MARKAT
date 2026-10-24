@@ -1,8 +1,20 @@
 [build]
-  publish = "public"
+  publish = "."
 
 [[redirects]]
   from = "/*"
   to = "https://nova-markat.onrender.com/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/profile"
+  to = "https://nova-markat-profile-test.onrender.com/profile/"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/profile/"
+  to = "https://nova-markat-profile-test.onrender.com/profile/"
   status = 200
   force = true
