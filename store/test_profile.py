@@ -75,7 +75,7 @@ class ProfileViewTests(TestCase):
             ),
         })
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "قم برفع صورة صحيحة")
+        self.assertContains(response, "الملف المرفوع ليس صورة صالحة.")
         self.user.refresh_from_db()
         self.assertFalse(self.user.avatar)
 
