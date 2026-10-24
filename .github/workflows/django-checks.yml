@@ -1,0 +1,29 @@
+name: Django checks
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main, "feature/**", "fix/**"]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      DEBUG: "True"
+      SECRET_KEY: "ci-only-not-for-production"
+      ALLOWED_HOSTS: "localhost,127.0.0.1"
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Run Django system checks
+        run: python manage.py check
+      - name: Run profile security tests
+        run: python manage.py test store.test_profile --verbosity 2
