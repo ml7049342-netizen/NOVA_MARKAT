@@ -7,7 +7,9 @@
 - Avatar upload checks: JPEG, PNG, or WEBP; maximum 2 MiB; image data must be readable.
 - Checked-in initial migration for the current `store` models.
 - CI verifies migrations match models and runs the Django test suite.
-- A limited copy deterrent on the registration page: ordinary page text is not selectable/copyable through common browser interactions, while form controls remain usable.
+- A limited copy deterrent on the registration page. Ordinary page text is not selectable/copyable through common browser interactions, while form controls remain usable.
+- A navigation and homepage layout refresh inspired by common marketplace usability patterns: clearer main navigation, a dedicated categories section, a more prominent search form, clearer product cards and prices, better empty-search states, and a compact horizontally scrollable mobile navigation.
+- The marketplace layout uses NOVA MARKAT's own visual identity and content; it does not copy Ouedkniss or another marketplace's assets.
 
 ## Copy and screenshot limitations
 
