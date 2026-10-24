@@ -1,1 +1,73 @@
-{% extends 'base.html' %}{% block content %}<section class="hero"><div><span class="eyebrow">MARKETPLACE · ALGERIA</span><h1>تجارة أذكى.<br><em>اختيار أوسع.</em></h1><p>منصة تجمع المشترين والبائعين والموردين وشركات التوصيل في مكان واحد.</p><form class="search"><input name="q" value="{{q}}" placeholder="ابحث عن منتج، متجر أو كلمة..."> <button>بحث</button></form></div><div class="hero-card"><strong>69</strong><span>ولاية مستهدفة</span><small>دفع عند الاستلام · تجربة عربية فاخرة</small></div></section><section class="section"><div class="section-head"><h2>أحدث المنتجات</h2><span>{{products|length}} منتج</span></div><div class="grid">{% for p in products %}<article class="card"><div class="pic">{% if p.main_image %}<img src="{{p.main_image.url}}">{% else %}<span>NOVA</span>{% endif %}</div><div class="card-body"><small>{{p.category.name|default:'عام'}}</small><h3>{{p.name}}</h3><p>{{p.description|truncatechars:75}}</p><strong>{{p.price}} دج</strong><a class="btn" href="{% url 'product_detail' p.id %}">عرض المنتج</a></div></article>{% empty %}<div class="empty">لا توجد منتجات بعد. أنشئ حساب بائع وأضف أول منتج.</div>{% endfor %}</div></section>{% endblock %}
+{% extends 'base.html' %}
+{% block content %}
+<section class="hero">
+  <div class="hero-copy">
+    <span class="eyebrow">MARKETPLACE · ALGERIA</span>
+    <h1>تجارة أذكى.<br><em>اختيار أوسع.</em></h1>
+    <p>اكتشف المنتجات، قارن الخيارات، وتسوّق من البائعين في مختلف أنحاء الجزائر.</p>
+    <form class="search" method="get" action="{% url 'home' %}" role="search">
+      <label class="sr-only" for="market-search">ابحث عن منتج أو متجر</label>
+      <input id="market-search" type="search" name="q" value="{{ q }}" placeholder="ماذا تبحث عنه اليوم؟">
+      <button class="gold" type="submit">بحث</button>
+    </form>
+    <div class="hero-actions">
+      <a class="btn gold" href="#latest-products">اكتشف المنتجات</a>
+      {% if not user.is_authenticated %}<a class="btn" href="{% url 'register' %}">ابدأ البيع معنا</a>{% endif %}
+    </div>
+  </div>
+  <div class="hero-card">
+    <span class="hero-mark" aria-hidden="true">N</span>
+    <strong>69</strong>
+    <span>ولاية جزائرية</span>
+    <small>تجربة عربية · أسعار بالدينار · الدفع عند الاستلام</small>
+  </div>
+</section>
+
+{% if categories %}
+<section class="section category-section" id="categories">
+  <div class="section-head">
+    <div><span class="section-kicker">تصفّح بسهولة</span><h2>تسوّق حسب التصنيف</h2></div>
+    <span class="section-hint">اختر ما تبحث عنه</span>
+  </div>
+  <div class="category-list">
+    {% for category in categories %}
+      <a class="category-chip" href="{% url 'home' %}?category={{ category.id }}#latest-products">
+        <span class="category-dot" aria-hidden="true">✦</span>
+        <span>{{ category.name }}</span>
+        <span class="category-arrow" aria-hidden="true">←</span>
+      </a>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+<section class="section" id="latest-products">
+  <div class="section-head">
+    <div><span class="section-kicker">{% if q %}نتائج البحث{% else %}اختيارات من السوق{% endif %}</span><h2>{% if q %}نتائج البحث عن «{{ q }}»{% else %}أحدث المنتجات{% endif %}</h2></div>
+    <span class="section-hint">{{ products|length }} منتج</span>
+  </div>
+  <div class="grid">
+    {% for p in products %}
+      <article class="card product-card">
+        <a class="pic" href="{% url 'product_detail' p.id %}" aria-label="عرض {{ p.name }}">
+          {% if p.main_image %}<img src="{{ p.main_image.url }}" alt="{{ p.name }}" loading="lazy">{% else %}<span class="product-placeholder">NOVA</span>{% endif %}
+        </a>
+        <div class="card-body">
+          <small class="product-category">{{ p.category.name|default:'عام' }}</small>
+          <h3><a href="{% url 'product_detail' p.id %}">{{ p.name }}</a></h3>
+          <p>{{ p.description|truncatechars:75 }}</p>
+          <strong class="product-price">{{ p.price }} دج</strong>
+          <a class="btn product-action" href="{% url 'product_detail' p.id %}">التفاصيل <span aria-hidden="true">←</span></a>
+        </div>
+      </article>
+    {% empty %}
+      <div class="empty-state">
+        <span class="empty-icon" aria-hidden="true">⌕</span>
+        <h3>{% if q %}لم نعثر على منتجات مطابقة{% else %}السوق يستعد لاستقبال أول المنتجات{% endif %}</h3>
+        <p>{% if q %}جرّب كلمات أخرى أو امسح البحث لرؤية جميع المنتجات المتاحة.{% else %}ستظهر المنتجات المنشورة هنا عند إضافتها من حساب البائع.{% endif %}</p>
+        {% if q %}<a class="btn" href="{% url 'home' %}">عرض كل المنتجات</a>{% elif user.is_authenticated %}<a class="btn gold" href="{% url 'seller_product_add' %}">إضافة منتج</a>{% else %}<a class="btn gold" href="{% url 'register' %}">إنشاء حساب بائع</a>{% endif %}
+      </div>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

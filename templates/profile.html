@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}ملفي الشخصي | NOVA MARKAT{% endblock %}
+{% block content %}
+<section class="form-card profile-card" aria-labelledby="profile-heading">
+  <h1 id="profile-heading">ملفي الشخصي</h1>
+  <p>حدّث بيانات حسابك واختر صورة شخصية من الصور الجاهزة. صور NOVA MARKAT محفوظة داخل التطبيق، لذلك لا تحتاج إلى رفع ملف أو مساحة تخزين إضافية.</p>
+
+  <form method="post" novalidate>
+    {% csrf_token %}
+    <div class="profile-avatar-current">
+      <img src="{% static 'avatars/avatar-1.svg' %}" alt="معاينة الصورة الشخصية" id="avatar-preview">
+    </div>
+
+    <div class="profile-fields">
+      <div><label for="{{ form.username.id_for_label }}">اسم المستخدم</label>{{ form.username }}{{ form.username.errors }}</div>
+      <div><label for="{{ form.email.id_for_label }}">البريد الإلكتروني</label>{{ form.email }}{{ form.email.errors }}</div>
+      <div><label for="{{ form.phone.id_for_label }}">رقم الهاتف</label>{{ form.phone }}{{ form.phone.errors }}</div>
+    </div>
+
+    <fieldset class="avatar-picker">
+      <legend>اختر صورتك الشخصية</legend>
+      <p class="muted">اختر واحدة من خمس صور مصممة لتناسب الهوية الداكنة والذهبية للموقع.</p>
+      <div class="avatar-options">
+        {% for value, label in form.avatar_choice.field.choices %}
+          {% with avatar_path="avatars/"|add:value %}
+            <label class="avatar-option" for="avatar-{{ forloop.counter }}">
+              <input type="radio" id="avatar-{{ forloop.counter }}" name="avatar_choice" value="{{ value }}" data-avatar-url="{% static avatar_path %}" {% if form.avatar_choice.value == value %}checked{% endif %}>
+              <img src="{% static avatar_path %}" alt="" loading="lazy">
+              <span>{{ label }}</span>
+            </label>
+          {% endwith %}
+        {% endfor %}
+      </div>
+      {{ form.avatar_choice.errors }}
+    </fieldset>
+
+    <button class="gold profile-save" type="submit">حفظ التغييرات</button>
+  </form>
+</section>
+<script>
+  function updateAvatarPreview() {
+    var selected = document.querySelector('input[name="avatar_choice"]:checked');
+    if (selected) {
+      document.getElementById('avatar-preview').src = selected.dataset.avatarUrl;
+    }
+  }
+  document.querySelectorAll('input[name="avatar_choice"]').forEach(function (input) {
+    input.addEventListener('change', updateAvatarPreview);
+  });
+  updateAvatarPreview();
+</script>
+{% endblock %}

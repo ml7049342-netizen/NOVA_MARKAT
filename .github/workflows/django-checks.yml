@@ -1,0 +1,33 @@
+name: Django checks
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main, "feature/**", "fix/**"]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      DEBUG: "True"
+      SECRET_KEY: "ci-only-not-for-production"
+      ALLOWED_HOSTS: "localhost,127.0.0.1"
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Run Django system checks
+        run: python manage.py check
+      - name: Check migration files match models
+        run: python manage.py makemigrations --check --dry-run
+      - name: Collect static files for template rendering
+        run: python manage.py collectstatic --noinput
+      - name: Run Django test suite
+        run: python manage.py test --verbosity 2
