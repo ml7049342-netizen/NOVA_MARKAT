@@ -109,3 +109,24 @@ main{min-height:65vh}
 @media(prefers-reduced-motion:reduce){
  *,*::before,*::after{scroll-behavior:auto!important;transition:none!important;animation:none!important}
 }
+
+
+/* Built-in profile avatar picker */
+.profile-card>p{color:var(--muted);font-size:14px}
+.profile-avatar-current{display:flex;justify-content:center;margin:24px 0}
+.profile-avatar-current img{width:112px;height:112px;object-fit:cover;border-radius:50%;border:3px solid var(--gold);box-shadow:0 8px 30px #0006;background:#10151b}
+.profile-fields{display:grid;grid-template-columns:1fr;gap:4px}
+.profile-fields label{display:block;font-size:14px;color:#e2e5e9}
+.avatar-picker{border:1px solid var(--line);border-radius:16px;padding:18px;margin:18px 0 24px;min-width:0}
+.avatar-picker legend{padding:0 8px;color:var(--gold);font-weight:700}
+.avatar-picker .muted{color:var(--muted);font-size:13px;margin:0 0 14px}
+.avatar-options{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+.avatar-option{display:flex;flex-direction:column;align-items:center;gap:7px;min-width:0;padding:10px 5px;border:1px solid var(--line);border-radius:14px;background:#080d12;cursor:pointer;transition:border-color .18s ease,background .18s ease}
+.avatar-option:hover{border-color:#d9b45b99}
+.avatar-option:has(input:checked){border-color:var(--gold);background:#d9b45b13;box-shadow:0 0 0 1px #d9b45b33}
+.avatar-option input{width:16px;height:16px;margin:0;accent-color:var(--gold)}
+.avatar-option img{width:clamp(42px,7vw,70px);aspect-ratio:1;object-fit:cover;border-radius:50%;border:1px solid #ffffff18}
+.avatar-option span{font-size:12px;text-align:center;color:#d7dbe0}
+.profile-save{width:100%;min-height:46px;font-weight:700}
+.errorlist{color:#ffaaa5;font-size:13px;padding-right:18px}
+@media(max-width:480px){.avatar-options{gap:5px}.avatar-option{padding:8px 2px}.avatar-option span{font-size:10px}.avatar-picker{padding:12px 8px}.profile-card{padding:20px 14px}}
