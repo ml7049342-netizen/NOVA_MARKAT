@@ -1,0 +1,39 @@
+name: Django checks
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main, fix/staging-initial-migration]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Django system check
+        env:
+          DEBUG: "True"
+          SECRET_KEY: "ci-only-not-a-secret"
+        run: python manage.py check
+      - name: Collect static files for manifest-backed storage
+        env:
+          DEBUG: "True"
+          SECRET_KEY: "ci-only-not-a-secret"
+        run: python manage.py collectstatic --noinput
+      - name: Run automated tests
+        env:
+          DEBUG: "True"
+          SECRET_KEY: "ci-only-not-a-secret"
+        run: python manage.py test
+      - name: Verify migration state
+        env:
+          DEBUG: "True"
+          SECRET_KEY: "ci-only-not-a-secret"
+        run: python manage.py makemigrations --check --dry-run
