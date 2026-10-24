@@ -7,6 +7,11 @@
 - Avatar upload checks: JPEG, PNG, or WEBP; maximum 2 MiB; image data must be readable.
 - Checked-in initial migration for the current `store` models.
 - CI verifies migrations match models and runs the Django test suite.
+- A limited copy deterrent on the registration page: ordinary page text is not selectable/copyable through common browser interactions, while form controls remain usable.
+
+## Copy and screenshot limitations
+
+The registration-page deterrent is only a user-interface obstacle. It can be bypassed using browser tools, scripts, accessibility features, or another device, and it does not protect secrets. A normal website cannot reliably block screenshots or screen recording in a browser. Screenshot blocking is available to a native Android application using Android's `FLAG_SECURE`, but NOVA MARKAT is currently a website, so that control cannot be applied from Django/HTML alone. Do not display passwords or sensitive secrets in the registration page.
 
 ## Production media-storage requirement
 
