@@ -11,10 +11,19 @@ if not SECRET_KEY:
     raise RuntimeError("SECRET_KEY مطلوب في ملف .env عندما DEBUG=False")
 ALLOWED_HOSTS = [x.strip() for x in os.getenv("ALLOWED_HOSTS", "127.0.0.1,localhost").split(",") if x.strip()]
 RENDER_HOST = os.getenv("RENDER_EXTERNAL_HOSTNAME")
-CSRF_TRUSTED_ORIGINS = []
+# The public Netlify domain proxies requests to Django; include it so Host and CSRF
+# validation work when visitors use the public storefront URL.
+NETLIFY_HOST = os.getenv("NETLIFY_HOST", "nova-markat-dz.netlify.app").strip()
+CSRF_TRUSTED_ORIGINS = [
+    origin.strip().rstrip("/")
+    for origin in os.getenv("CSRF_TRUSTED_ORIGINS", "https://nova-markat-dz.netlify.app").split(",")
+    if origin.strip()
+]
 if RENDER_HOST:
     ALLOWED_HOSTS.append(RENDER_HOST)
     CSRF_TRUSTED_ORIGINS.append(f"https://{RENDER_HOST}")
+if NETLIFY_HOST:
+    ALLOWED_HOSTS.append(NETLIFY_HOST)
 
 INSTALLED_APPS = [
     "django.contrib.admin","django.contrib.auth","django.contrib.contenttypes",
