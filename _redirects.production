@@ -23,5 +23,5 @@
 /supplier/* https://nova-markat.onrender.com/supplier/:splat 200!
 /logout https://nova-markat.onrender.com/logout/ 200!
 /logout/ https://nova-markat.onrender.com/logout/ 200!
-/profile https://nova-markat-profile-test.onrender.com/profile/ 200!
-/profile/ https://nova-markat-profile-test.onrender.com/profile/ 200!
+/profile https://nova-markat.onrender.com/profile/ 200!
+/profile/ https://nova-markat.onrender.com/profile/ 200!
