@@ -291,14 +291,6 @@ def notifications(request):
 def register(request):
     if request.user.is_authenticated:
         return redirect("dashboard")
-    ip = request.META.get("REMOTE_ADDR", "unknown")
-    cache_key = f"registration-attempts:{ip}"
-    if request.method == "POST":
-        attempts = cache.get(cache_key, 0)
-        if attempts >= 5:
-            messages.error(request, "تم تجاوز عدد محاولات التسجيل. حاول لاحقًا.")
-            return render(request, "register.html", {"form": RegisterForm(), "limited": True}, status=429)
-        cache.set(cache_key, attempts + 1, 60 * 60)
     form = RegisterForm(request.POST or None)
     if form.is_valid():
         user = form.save(commit=False)
@@ -313,7 +305,6 @@ def register(request):
         messages.success(request, "تم إنشاء الحساب. سيبقى دورك بانتظار اعتماد الإدارة قبل تفعيل وظائفه.")
         return redirect("login")
     return render(request, "register.html", {"form": form})
-
 
 def login_view(request):
     if request.user.is_authenticated:
