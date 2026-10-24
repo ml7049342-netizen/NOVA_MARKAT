@@ -22,6 +22,11 @@ jobs:
           DEBUG: "True"
           SECRET_KEY: "ci-only-not-a-secret"
         run: python manage.py check
+      - name: Collect static files for manifest-backed storage
+        env:
+          DEBUG: "True"
+          SECRET_KEY: "ci-only-not-a-secret"
+        run: python manage.py collectstatic --noinput
       - name: Run automated tests
         env:
           DEBUG: "True"
