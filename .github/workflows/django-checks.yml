@@ -27,5 +27,7 @@ jobs:
         run: python manage.py check
       - name: Generate initial migration for the repository bootstrap
         run: python manage.py makemigrations store --noinput
+      - name: Collect static files for template rendering
+        run: python manage.py collectstatic --noinput
       - name: Run profile security tests
         run: python manage.py test store.test_profile --verbosity 2
