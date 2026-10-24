@@ -61,3 +61,37 @@ class ProfileViewTests(TestCase):
         self.assertContains(response, "هذا البريد الإلكتروني مستخدم بالفعل.")
         self.user.refresh_from_db()
         self.assertEqual(self.user.email, "old@example.com")
+
+    def test_invalid_avatar_file_is_rejected(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        self.client.force_login(self.user)
+        response = self.client.post(reverse("profile"), {
+            "username": self.user.username,
+            "email": self.user.email,
+            "phone": "0550123456",
+            "avatar": SimpleUploadedFile(
+                "avatar.png", b"this is not a real image", content_type="image/png"
+            ),
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "الملف المرفوع ليس صورة صالحة.")
+        self.user.refresh_from_db()
+        self.assertFalse(self.user.avatar)
+
+    def test_avatar_larger_than_two_megabytes_is_rejected(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        self.client.force_login(self.user)
+        response = self.client.post(reverse("profile"), {
+            "username": self.user.username,
+            "email": self.user.email,
+            "phone": "0550123456",
+            "avatar": SimpleUploadedFile(
+                "large.png", b"x" * (2 * 1024 * 1024 + 1), content_type="image/png"
+            ),
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "حجم الصورة يجب ألا يتجاوز 2 ميغابايت.")
+        self.user.refresh_from_db()
+        self.assertFalse(self.user.avatar)
