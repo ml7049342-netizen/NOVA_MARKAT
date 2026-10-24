@@ -66,7 +66,7 @@ class ProfileForm(forms.ModelForm):
 
     def clean_avatar(self):
         avatar = self.cleaned_data.get("avatar")
-        if not avatar or not hasattr(avatar, "read"):
+        if not avatar or not hasattr(avatar, "read") or getattr(avatar, "_committed", False):
             return avatar
         if avatar.size > 2 * 1024 * 1024:
             raise forms.ValidationError("حجم الصورة يجب ألا يتجاوز 2 ميغابايت.")
