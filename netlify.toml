@@ -1,0 +1,7 @@
+# Route the public storefront through the Django application on Render.
+# Force the proxy so Netlify's old static demo index.html cannot shadow Django.
+[[redirects]]
+  from = "/*"
+  to = "https://nova-markat.onrender.com/:splat"
+  status = 200
+  force = true
