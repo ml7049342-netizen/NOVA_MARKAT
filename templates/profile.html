@@ -9,13 +9,7 @@
   <form method="post" novalidate>
     {% csrf_token %}
     <div class="profile-avatar-current">
-      {% if user.avatar.name|slice:":7" == "preset/" %}
-        <img src="{% static user.avatar.name|slice:"7:" %}" alt="الصورة الشخصية الحالية" id="avatar-preview">
-      {% elif user.avatar %}
-        <img src="{{ user.avatar.url }}" alt="الصورة الشخصية الحالية" id="avatar-preview">
-      {% else %}
-        <img src="{% static 'avatars/avatar-1.svg' %}" alt="الصورة الشخصية الحالية" id="avatar-preview">
-      {% endif %}
+      <img src="{% static 'avatars/avatar-1.svg' %}" alt="معاينة الصورة الشخصية" id="avatar-preview">
     </div>
 
     <div class="profile-fields">
@@ -29,11 +23,13 @@
       <p class="muted">اختر واحدة من خمس صور مصممة لتناسب الهوية الداكنة والذهبية للموقع.</p>
       <div class="avatar-options">
         {% for value, label in form.avatar_choice.field.choices %}
-          <label class="avatar-option" for="avatar-{{ forloop.counter }}">
-            <input type="radio" id="avatar-{{ forloop.counter }}" name="avatar_choice" value="{{ value }}" {% if form.avatar_choice.value == value %}checked{% endif %}>
-            <img src="{% static 'avatars/' %}{{ value }}" alt="" loading="lazy">
-            <span>{{ label }}</span>
-          </label>
+          {% with avatar_path="avatars/"|add:value %}
+            <label class="avatar-option" for="avatar-{{ forloop.counter }}">
+              <input type="radio" id="avatar-{{ forloop.counter }}" name="avatar_choice" value="{{ value }}" {% if form.avatar_choice.value == value %}checked{% endif %}>
+              <img src="{% static avatar_path %}" alt="" loading="lazy">
+              <span>{{ label }}</span>
+            </label>
+          {% endwith %}
         {% endfor %}
       </div>
       {{ form.avatar_choice.errors }}
@@ -43,12 +39,15 @@
   </form>
 </section>
 <script>
+  function updateAvatarPreview() {
+    var selected = document.querySelector('input[name="avatar_choice"]:checked');
+    if (selected) {
+      document.getElementById('avatar-preview').src = "{% static 'avatars/' %}" + selected.value;
+    }
+  }
   document.querySelectorAll('input[name="avatar_choice"]').forEach(function (input) {
-    input.addEventListener('change', function () {
-      if (input.checked) {
-        document.getElementById('avatar-preview').src = "{% static 'avatars/' %}" + input.value;
-      }
-    });
+    input.addEventListener('change', updateAvatarPreview);
   });
+  updateAvatarPreview();
 </script>
 {% endblock %}
