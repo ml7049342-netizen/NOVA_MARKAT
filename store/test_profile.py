@@ -75,12 +75,19 @@ class ProfileViewTests(TestCase):
             ),
         })
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "الملف المرفوع ليس صورة صالحة.")
+        self.assertContains(response, "قم برفع صورة صحيحة")
         self.user.refresh_from_db()
         self.assertFalse(self.user.avatar)
 
     def test_avatar_larger_than_two_megabytes_is_rejected(self):
+        from io import BytesIO
         from django.core.files.uploadedfile import SimpleUploadedFile
+        from PIL import Image
+
+        buffer = BytesIO()
+        Image.effect_noise((1400, 1400), 100).convert("RGB").save(buffer, format="PNG")
+        image_bytes = buffer.getvalue()
+        self.assertGreater(len(image_bytes), 2 * 1024 * 1024)
 
         self.client.force_login(self.user)
         response = self.client.post(reverse("profile"), {
@@ -88,7 +95,7 @@ class ProfileViewTests(TestCase):
             "email": self.user.email,
             "phone": "0550123456",
             "avatar": SimpleUploadedFile(
-                "large.png", b"x" * (2 * 1024 * 1024 + 1), content_type="image/png"
+                "large.png", image_bytes, content_type="image/png"
             ),
         })
         self.assertEqual(response.status_code, 200)
