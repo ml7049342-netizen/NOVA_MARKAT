@@ -1,1 +1,48 @@
-{% extends 'base.html' %}{% block content %}<section class="form-card"><h1>إنشاء حساب NOVA MARKAT</h1><p>اختر دورك الآن، ويمكنك استخدام المنصة دون اشتراك إلزامي.</p><form method="post">{% csrf_token %}{{form.as_p}}<button class="gold">إنشاء الحساب</button></form></section>{% endblock %}
+{% extends 'base.html' %}
+{% block content %}
+<style>
+  /* A small copy deterrent for the registration page; not a security boundary. */
+  .registration-protected { -webkit-user-select: none; user-select: none; }
+  .registration-protected input,
+  .registration-protected textarea,
+  .registration-protected select,
+  .registration-protected [contenteditable="true"] {
+    -webkit-user-select: text; user-select: text;
+  }
+</style>
+<section class="form-card registration-protected" id="registration-protected">
+  <h1>إنشاء حساب NOVA MARKAT</h1>
+  <p>اختر دورك الآن، ويمكنك استخدام المنصة دون اشتراك إلزامي.</p>
+  <form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button class="gold" type="submit">إنشاء الحساب</button>
+  </form>
+  <p class="security-note">تنبيه: هذه الصفحة تقلّل النسخ من النصوص الظاهرة فقط. لا يستطيع موقع الويب منع لقطات الشاشة منعًا موثوقًا؛ لا تُدخل معلومات سرية لا تحتاجها المنصة.</p>
+</section>
+<script>
+(() => {
+  const panel = document.getElementById('registration-protected');
+  if (!panel) return;
+  const isEditable = (target) => !!target.closest('input, textarea, select, [contenteditable="true"]');
+  panel.addEventListener('copy', (event) => {
+    if (!isEditable(event.target)) event.preventDefault();
+  });
+  panel.addEventListener('cut', (event) => {
+    if (!isEditable(event.target)) event.preventDefault();
+  });
+  panel.addEventListener('contextmenu', (event) => {
+    if (!isEditable(event.target)) event.preventDefault();
+  });
+  panel.addEventListener('dragstart', (event) => {
+    if (!isEditable(event.target)) event.preventDefault();
+  });
+  panel.addEventListener('keydown', (event) => {
+    if (isEditable(event.target)) return;
+    if ((event.ctrlKey || event.metaKey) && ['c', 'x', 'a'].includes(event.key.toLowerCase())) {
+      event.preventDefault();
+    }
+  });
+})();
+</script>
+{% endblock %}
