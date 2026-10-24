@@ -1,15 +1,54 @@
 {% extends 'base.html' %}
+{% load static %}
 {% block title %}ملفي الشخصي | NOVA MARKAT{% endblock %}
 {% block content %}
-<section class="form-card" aria-labelledby="profile-heading">
+<section class="form-card profile-card" aria-labelledby="profile-heading">
   <h1 id="profile-heading">ملفي الشخصي</h1>
-  <p>حدّث اسم المستخدم والبريد الإلكتروني ورقم الهاتف والصورة الشخصية. لا يمكن تغيير دور الحساب من هذه الصفحة.</p>
-  {% if user.avatar %}<div class="profile-avatar" style="text-align:center;margin:20px 0"><img src="{{ user.avatar.url }}" alt="الصورة الشخصية الحالية" style="width:112px;height:112px;object-fit:cover;border-radius:50%;border:2px solid #d9b45b"></div>{% endif %}
-  <form method="post" enctype="multipart/form-data" novalidate>
+  <p>حدّث بيانات حسابك واختر صورة شخصية من الصور الجاهزة. صور NOVA MARKAT محفوظة داخل التطبيق، لذلك لا تحتاج إلى رفع ملف أو مساحة تخزين إضافية.</p>
+
+  <form method="post" novalidate>
     {% csrf_token %}
-    {{ form.as_p }}
-    <p class="muted">الصورة: JPG أو PNG أو WEBP، بحد أقصى 2 ميغابايت.</p>
-    <button class="gold" type="submit">حفظ التغييرات</button>
+    <div class="profile-avatar-current">
+      {% if user.avatar.name|slice:":7" == "preset/" %}
+        <img src="{% static user.avatar.name|slice:"7:" %}" alt="الصورة الشخصية الحالية" id="avatar-preview">
+      {% elif user.avatar %}
+        <img src="{{ user.avatar.url }}" alt="الصورة الشخصية الحالية" id="avatar-preview">
+      {% else %}
+        <img src="{% static 'avatars/avatar-1.svg' %}" alt="الصورة الشخصية الحالية" id="avatar-preview">
+      {% endif %}
+    </div>
+
+    <div class="profile-fields">
+      <div><label for="{{ form.username.id_for_label }}">اسم المستخدم</label>{{ form.username }}{{ form.username.errors }}</div>
+      <div><label for="{{ form.email.id_for_label }}">البريد الإلكتروني</label>{{ form.email }}{{ form.email.errors }}</div>
+      <div><label for="{{ form.phone.id_for_label }}">رقم الهاتف</label>{{ form.phone }}{{ form.phone.errors }}</div>
+    </div>
+
+    <fieldset class="avatar-picker">
+      <legend>اختر صورتك الشخصية</legend>
+      <p class="muted">اختر واحدة من خمس صور مصممة لتناسب الهوية الداكنة والذهبية للموقع.</p>
+      <div class="avatar-options">
+        {% for value, label in form.avatar_choice.field.choices %}
+          <label class="avatar-option" for="avatar-{{ forloop.counter }}">
+            <input type="radio" id="avatar-{{ forloop.counter }}" name="avatar_choice" value="{{ value }}" {% if form.avatar_choice.value == value %}checked{% endif %}>
+            <img src="{% static 'avatars/' %}{{ value }}" alt="" loading="lazy">
+            <span>{{ label }}</span>
+          </label>
+        {% endfor %}
+      </div>
+      {{ form.avatar_choice.errors }}
+    </fieldset>
+
+    <button class="gold profile-save" type="submit">حفظ التغييرات</button>
   </form>
 </section>
+<script>
+  document.querySelectorAll('input[name="avatar_choice"]').forEach(function (input) {
+    input.addEventListener('change', function () {
+      if (input.checked) {
+        document.getElementById('avatar-preview').src = "{% static 'avatars/' %}" + input.value;
+      }
+    });
+  });
+</script>
 {% endblock %}
