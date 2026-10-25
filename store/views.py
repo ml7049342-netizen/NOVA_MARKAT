@@ -141,10 +141,18 @@ def checkout(request):
             if not str(key).isdigit():
                 messages.error(request, "تحتوي السلة على عنصر غير صالح. حدّث السلة ثم أعد المحاولة.")
                 return redirect("cart")
+            # Session data is client-controlled; reject booleans and fractional values
+            # rather than silently converting them into a different order quantity.
+            if isinstance(value, bool) or not (
+                isinstance(value, int) or (isinstance(value, str) and value.isdecimal())
+            ):
+                messages.error(request, "توجد كمية غير صالحة في السلة.")
+                return redirect("cart")
             try:
                 quantity = int(value)
-            except (TypeError, ValueError):
-                quantity = 0
+            except (TypeError, ValueError, OverflowError):
+                messages.error(request, "توجد كمية غير صالحة في السلة.")
+                return redirect("cart")
             if quantity < 1 or quantity > 99:
                 messages.error(request, "توجد كمية غير صالحة في السلة.")
                 return redirect("cart")
