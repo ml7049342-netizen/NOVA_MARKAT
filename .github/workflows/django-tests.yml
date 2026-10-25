@@ -1,0 +1,30 @@
+name: Django validation
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main, "fix/production-readiness"]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      DEBUG: "True"
+      SECRET_KEY: "ci-only-not-for-production"
+      DATABASE_URL: "sqlite:///ci.sqlite3"
+      ALLOWED_HOSTS: "localhost,127.0.0.1,testserver"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Create missing initial migration if needed
+        run: python manage.py makemigrations store --noinput
+      - name: Apply migrations
+        run: python manage.py migrate --noinput
+      - name: Run Django tests
+        run: python manage.py test
