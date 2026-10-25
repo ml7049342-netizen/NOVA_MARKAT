@@ -2,13 +2,13 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import path
-from django.views.generic import RedirectView
 from store import api, views
-from store.seo import robots_txt, service_worker
+from store.seo import favicon, robots_txt, service_worker, web_manifest
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    path("favicon.ico", RedirectView.as_view(url="/static/logo.svg", permanent=True), name="favicon"),
+    path("favicon.ico", favicon, name="favicon"),
+    path("manifest.json", web_manifest, name="manifest"),
     path("robots.txt", robots_txt, name="robots_txt"),
     path("sw.js", service_worker, name="service_worker"),
     path("", views.home, name="home"),
