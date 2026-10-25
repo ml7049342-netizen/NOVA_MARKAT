@@ -55,9 +55,12 @@ jobs:
               && curl --fail --silent --show-error --location "$BASE_URL/sw.js" -o /tmp/sw.js \
               && curl --fail --silent --show-error --location "$BASE_URL/api/csrf/" -o /tmp/csrf.json \
               && curl --fail --silent --show-error --location "$BASE_URL/api/products/" -o /tmp/products.json \
-              && curl --fail --silent --show-error --location "$BASE_URL/api/delivery-companies/" -o /tmp/delivery.json; then
+              && curl --fail --silent --show-error --location "$BASE_URL/api/delivery-companies/" -o /tmp/delivery.json \
+              && curl --fail --silent --show-error --location "$BASE_URL/manifest.json" -o /tmp/manifest.json \
+              && curl --fail --silent --show-error --location "$BASE_URL/favicon.ico" -o /tmp/favicon.svg; then
               grep -q "User-agent: \*" /tmp/robots.txt
               grep -q "skipWaiting" /tmp/sw.js
+              grep -q "<svg" /tmp/favicon.svg
               python - <<'PY'
           import json
           from pathlib import Path
@@ -65,10 +68,14 @@ jobs:
           csrf = json.loads(Path("/tmp/csrf.json").read_text())
           products = json.loads(Path("/tmp/products.json").read_text())
           delivery = json.loads(Path("/tmp/delivery.json").read_text())
+          manifest = json.loads(Path("/tmp/manifest.json").read_text())
           assert csrf.get("csrfToken"), "CSRF token missing"
           assert isinstance(products.get("products"), list), "Product API response invalid"
           assert isinstance(delivery.get("companies"), list), "Delivery API response invalid"
-          print("Staging smoke checks passed: homepage, robots, service worker, CSRF, products, delivery companies.")
+          assert manifest.get("lang") == "ar" and manifest.get("dir") == "rtl", "PWA manifest locale/direction invalid"
+          icon = manifest.get("icons", [{}])[0].get("src", "")
+          assert icon.startswith("/static/logo.") and icon.endswith(".svg"), "Manifest icon URL is not hashed"
+          print("Staging smoke checks passed: homepage, robots, service worker, CSRF, products, delivery companies, manifest, favicon.")
           PY
               exit 0
             fi
