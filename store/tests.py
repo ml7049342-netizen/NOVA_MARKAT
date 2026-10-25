@@ -102,3 +102,75 @@ class CartTests(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(self.client.session.get("cart", {}), {})
         self.assertEqual(Order.objects.count(), 0)
+
+
+class FakeCheckoutTests(CartTests):
+    """End-to-end checkout tests using only Django's temporary test database."""
+
+    def setUp(self):
+        super().setUp()
+        self.buyer = User.objects.create_user(
+            username="test-buyer",
+            password="SafeTestPassword-2026!",
+            role="buyer",
+        )
+        self.client.force_login(self.buyer)
+        session = self.client.session
+        session["cart"] = {str(self.product.pk): 2}
+        session.save()
+
+    def test_fake_checkout_persists_order_and_items_and_updates_stock(self):
+        response = self.client.post(
+            reverse("checkout"),
+            {
+                "wilaya": "16",
+                "address": "عنوان اختبار غير حقيقي",
+                "phone": "0555123456",
+            },
+        )
+        self.assertRedirects(response, reverse("orders"), fetch_redirect_response=False)
+        self.assertEqual(Order.objects.count(), 1)
+        order = Order.objects.get()
+        self.assertEqual(order.buyer, self.buyer)
+        self.assertEqual(order.wilaya, "16")
+        self.assertEqual(order.phone, "0555123456")
+        self.assertEqual(str(order.total), "2500.00")
+        self.assertEqual(order.items.count(), 1)
+        item = order.items.get()
+        self.assertEqual(item.product_id, self.product.pk)
+        self.assertEqual(item.quantity, 2)
+        self.assertEqual(str(item.unit_price), "1250.00")
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.stock, 1)
+        self.assertEqual(self.client.session.get("cart"), {})
+
+    def test_fake_checkout_rejects_invalid_phone_without_order_or_stock_change(self):
+        response = self.client.post(
+            reverse("checkout"),
+            {
+                "wilaya": "16",
+                "address": "عنوان اختبار غير حقيقي",
+                "phone": "123",
+            },
+        )
+        self.assertRedirects(response, reverse("checkout"), fetch_redirect_response=False)
+        self.assertEqual(Order.objects.count(), 0)
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.stock, 3)
+
+    def test_fake_checkout_rejects_quantity_above_stock_without_order(self):
+        session = self.client.session
+        session["cart"] = {str(self.product.pk): 4}
+        session.save()
+        response = self.client.post(
+            reverse("checkout"),
+            {
+                "wilaya": "16",
+                "address": "عنوان اختبار غير حقيقي",
+                "phone": "0555123456",
+            },
+        )
+        self.assertRedirects(response, reverse("cart"), fetch_redirect_response=False)
+        self.assertEqual(Order.objects.count(), 0)
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.stock, 3)
