@@ -46,10 +46,20 @@ def add_to_cart(request, pk):
         cart = {}
     key = str(pk)
     try:
-        current = int(cart.get(key, 0))
-    except (TypeError, ValueError):
+        raw_current = cart.get(key, 0)
+        # bool is an int subclass in Python; do not treat a tampered True value as quantity 1.
+        current = 0 if isinstance(raw_current, bool) else int(raw_current)
+    except (TypeError, ValueError, OverflowError):
         current = 0
+
+    # Repair malformed or stale session quantities before applying the new addition.
+    current = max(0, min(current, product.stock, 99))
+    cart[key] = current
+    request.session["cart"] = cart
+
     if product.stock < 1:
+        cart.pop(key, None)
+        request.session["cart"] = cart
         messages.error(request, "هذا المنتج غير متوفر حاليًا.")
     elif current >= min(product.stock, 99):
         messages.error(request, "وصلت إلى الحد المتاح من هذا المنتج.")
