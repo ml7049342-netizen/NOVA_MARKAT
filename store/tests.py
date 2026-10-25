@@ -275,3 +275,42 @@ class FakeCheckoutTests(TestCase):
         self.assertEqual(Order.objects.count(), 0)
         self.product.refresh_from_db()
         self.assertEqual(self.product.stock, 3)
+
+    def test_fake_checkout_rejects_oversized_cart_without_order_or_stock_change(self):
+        session = self.client.session
+        session["cart"] = {str(index): 1 for index in range(1, 52)}
+        session.save()
+
+        response = self.client.post(
+            reverse("checkout"),
+            {
+                "wilaya": "16",
+                "address": "عنوان اختبار غير حقيقي",
+                "phone": "0555123456",
+            },
+        )
+
+        self.assertRedirects(response, reverse("cart"), fetch_redirect_response=False)
+        self.assertEqual(Order.objects.count(), 0)
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.stock, 3)
+
+    def test_fake_checkout_rejects_duplicate_normalized_product_ids(self):
+        session = self.client.session
+        session["cart"] = {str(self.product.pk): 1, f"0{self.product.pk}": 1}
+        session.save()
+
+        response = self.client.post(
+            reverse("checkout"),
+            {
+                "wilaya": "16",
+                "address": "عنوان اختبار غير حقيقي",
+                "phone": "0555123456",
+            },
+        )
+
+        self.assertRedirects(response, reverse("cart"), fetch_redirect_response=False)
+        self.assertEqual(Order.objects.count(), 0)
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.stock, 3)
+
