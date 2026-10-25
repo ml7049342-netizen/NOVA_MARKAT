@@ -136,11 +136,33 @@ def checkout(request):
             messages.error(request, "أدخل رقم هاتف جزائري صحيحًا.")
             return redirect("checkout")
 
+        # Bound session input before querying the database. A malformed or oversized
+        # cart must fail closed instead of causing excessive work or a server error.
+        if len(data) > 50:
+            messages.error(request, "تحتوي السلة على منتجات كثيرة. قلّل عدد المنتجات ثم أعد المحاولة.")
+            return redirect("cart")
+
         clean_cart = {}
         for key, value in data.items():
-            if not str(key).isdigit():
+            raw_id = str(key)
+            if not raw_id.isdecimal() or len(raw_id) > 18:
                 messages.error(request, "تحتوي السلة على عنصر غير صالح. حدّث السلة ثم أعد المحاولة.")
                 return redirect("cart")
+            try:
+                product_id = int(raw_id)
+            except (TypeError, ValueError, OverflowError):
+                messages.error(request, "تحتوي السلة على عنصر غير صالح. حدّث السلة ثم أعد المحاولة.")
+                return redirect("cart")
+            if product_id < 1:
+                messages.error(request, "تحتوي السلة على عنصر غير صالح. حدّث السلة ثم أعد المحاولة.")
+                return redirect("cart")
+
+            # Reject alternate spellings such as "01" and "1" for the same product.
+            product_key = str(product_id)
+            if product_key in clean_cart:
+                messages.error(request, "تحتوي السلة على منتج مكرر غير صالح. حدّث السلة ثم أعد المحاولة.")
+                return redirect("cart")
+
             # Session data is client-controlled; reject booleans and fractional values
             # rather than silently converting them into a different order quantity.
             if isinstance(value, bool) or not (
@@ -156,7 +178,7 @@ def checkout(request):
             if quantity < 1 or quantity > 99:
                 messages.error(request, "توجد كمية غير صالحة في السلة.")
                 return redirect("cart")
-            clean_cart[str(int(key))] = quantity
+            clean_cart[product_key] = quantity
 
         products = list(Product.objects.select_for_update().filter(id__in=clean_cart.keys(), active=True).select_related("seller"))
         if len(products) != len(clean_cart):
