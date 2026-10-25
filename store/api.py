@@ -140,12 +140,17 @@ def cart_set(request):
         return JsonResponse({"error": "بيانات السلة غير صالحة أو تحتوي منتجات كثيرة."}, status=400)
     clean = {}
     for raw_id, raw_quantity in requested.items():
+        # Require canonical decimal IDs; this rejects alternate spellings such as "01".
+        if not isinstance(raw_id, str) or not raw_id.isdecimal() or len(raw_id) > 18:
+            return JsonResponse({"error": "معرّف المنتج غير صالح."}, status=400)
         try:
             product_id = int(raw_id)
         except (ValueError, TypeError, OverflowError):
             return JsonResponse({"error": "معرّف المنتج غير صالح."}, status=400)
-        if product_id <= 0 or isinstance(raw_quantity, bool):
+        if product_id <= 0 or str(product_id) != raw_id or isinstance(raw_quantity, bool):
             return JsonResponse({"error": "بيانات منتج غير صالحة."}, status=400)
+        if str(product_id) in clean:
+            return JsonResponse({"error": "معرّف المنتج مكرر."}, status=400)
         quantity = _strict_int(raw_quantity)
         if quantity is None:
             return JsonResponse({"error": "الكمية غير صالحة."}, status=400)
