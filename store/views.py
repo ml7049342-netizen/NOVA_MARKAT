@@ -190,8 +190,15 @@ def orders(request):
 
 
 @login_required
+def approval_pending(request):
+    return render(request, "approval_pending.html")
+
+
+@login_required
 def dashboard(request):
     role = request.user.role
+    if role in {"seller", "supplier", "delivery"} and not request.user.is_verified:
+        return redirect("approval_pending")
     if role == "seller":
         products = request.user.products.select_related("category")
         items = OrderItem.objects.filter(product__seller=request.user)
@@ -210,6 +217,8 @@ def dashboard(request):
 def seller_product_add(request):
     if request.user.role != "seller":
         return redirect("dashboard")
+    if not request.user.is_verified:
+        return redirect("approval_pending")
     form = ProductForm(request.POST or None, request.FILES or None)
     if form.is_valid():
         obj = form.save(commit=False)
@@ -224,6 +233,8 @@ def seller_product_add(request):
 def supplier_product_add(request):
     if request.user.role != "supplier":
         return redirect("dashboard")
+    if not request.user.is_verified:
+        return redirect("approval_pending")
     form = SupplierProductForm(request.POST or None, request.FILES or None)
     if form.is_valid():
         obj = form.save(commit=False)
@@ -238,6 +249,8 @@ def supplier_product_add(request):
 def delivery_setup(request):
     if request.user.role != "delivery":
         return redirect("dashboard")
+    if not request.user.is_verified:
+        return redirect("approval_pending")
     company = getattr(request.user, "delivery_company", None)
     form = DeliveryCompanyForm(request.POST or None, request.FILES or None, instance=company)
     if form.is_valid():
