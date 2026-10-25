@@ -39,6 +39,11 @@ jobs:
         run: python manage.py test --verbosity 2
       - name: Verify migration state
         run: python manage.py makemigrations --check --dry-run
+      - name: Verify production and staging proxy targets
+        run: |
+          grep -Fqx '/* https://nova-markat.onrender.com/:splat 200!' netlify/redirects-production
+          grep -Fqx '/* https://nova-markat-repair-test.onrender.com/:splat 200!' netlify/redirects-staging
+          test "$(cat netlify/redirects-production)" != "$(cat netlify/redirects-staging)"
 
   staging-smoke:
     needs: test
