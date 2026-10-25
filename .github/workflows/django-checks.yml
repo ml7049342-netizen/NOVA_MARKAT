@@ -53,7 +53,7 @@ jobs:
             if curl --fail --silent --show-error --location "$BASE_URL/" -o /tmp/home.html \
               && curl --fail --silent --show-error --location "$BASE_URL/robots.txt" -o /tmp/robots.txt \
               && curl --fail --silent --show-error --location "$BASE_URL/sw.js" -o /tmp/sw.js \
-              && curl --fail --silent --show-error --location "$BASE_URL/api/csrf/" -o /tmp/csrf.json \
+              && curl --fail --silent --show-error --location --cookie-jar /tmp/cookies.txt "$BASE_URL/api/csrf/" -o /tmp/csrf.json \
               && curl --fail --silent --show-error --location "$BASE_URL/api/products/" -o /tmp/products.json \
               && curl --fail --silent --show-error --location "$BASE_URL/api/delivery-companies/" -o /tmp/delivery.json \
               && curl --fail --silent --show-error --location "$BASE_URL/manifest.json" -o /tmp/manifest.json \
@@ -77,6 +77,16 @@ jobs:
           assert icon.startswith("/static/logo.") and icon.endswith(".svg"), "Manifest icon URL is not hashed"
           print("Staging smoke checks passed: homepage, robots, service worker, CSRF, products, delivery companies, manifest, favicon.")
           PY
+              token="$(python -c 'import json; print(json.load(open("/tmp/csrf.json"))["csrfToken"])')"
+              status="$(curl --silent --show-error --output /tmp/cart-post.json --write-out '%{http_code}' \
+                --cookie /tmp/cookies.txt \
+                --request POST "$BASE_URL/api/cart/" \
+                --header "Content-Type: application/json" \
+                --header "X-CSRFToken: $token" \
+                --header "Origin: https://deploy-preview-9--nova-markat-dz.netlify.app" \
+                --data '{"items":{"99999999":1}}')"
+              test "$status" = "400"
+              echo "Staging CSRF-protected invalid-cart POST returned expected HTTP 400."
               exit 0
             fi
             echo "Staging is not ready yet (attempt $attempt/18); retrying in 10 seconds."
