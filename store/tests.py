@@ -1,9 +1,9 @@
 from django.test import TestCase, Client
 from django.urls import reverse
 from django.contrib.auth import get_user_model
+import json
 
-from store.models import Category, Product
-
+from store.models import Category, Product, Order
 
 User = get_user_model()
 
@@ -21,6 +21,11 @@ class PublicPageTests(TestCase):
         response = self.client.get("/favicon.ico")
         self.assertEqual(response.status_code, 301)
         self.assertEqual(response["Location"], "/static/logo.svg")
+
+    def test_robots_txt_is_served(self):
+        response = self.client.get("/robots.txt")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("User-agent: *", response.content.decode())
 
 
 class CartTests(TestCase):
@@ -54,4 +59,46 @@ class CartTests(TestCase):
         )
         self.assertEqual(response.status_code, 302)
         self.assertEqual(self.client.session["cart"], {str(self.product.pk): 1})
+        self.product.refresh_from_db()
         self.assertEqual(self.product.stock, 3)
+        self.assertEqual(Order.objects.count(), 0)
+
+    def test_fake_api_product_request_returns_product(self):
+        response = self.client.get("/api/products/")
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertIn("products", payload)
+        self.assertTrue(any(p["id"] == self.product.pk for p in payload["products"]))
+
+    def test_fake_api_cart_request_adds_only_to_test_session(self):
+        response = self.client.post(
+            f"/api/cart/add/{self.product.pk}/",
+            data=json.dumps({"quantity": 2}),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["quantity"], 2)
+        self.assertEqual(self.client.session["cart"], {str(self.product.pk): 2})
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.stock, 3)
+        self.assertEqual(Order.objects.count(), 0)
+
+    def test_fake_api_cart_rejects_quantity_above_stock(self):
+        response = self.client.post(
+            f"/api/cart/add/{self.product.pk}/",
+            data=json.dumps({"quantity": 4}),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(self.client.session.get("cart", {}), {})
+        self.assertEqual(Order.objects.count(), 0)
+
+    def test_fake_api_cart_rejects_invalid_quantity(self):
+        response = self.client.post(
+            f"/api/cart/add/{self.product.pk}/",
+            data=json.dumps({"quantity": -1}),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(self.client.session.get("cart", {}), {})
+        self.assertEqual(Order.objects.count(), 0)
