@@ -88,7 +88,7 @@ jobs:
                 --request POST "$BASE_URL/api/cart/" \
                 --header "Content-Type: application/json" \
                 --header "X-CSRFToken: $token" \
-                --header "Origin: https://deploy-preview-9--nova-markat-dz.netlify.app" \
+                --header "Origin: https://nova-markat-dz.netlify.app" \
                 --data '{"items":{"99999999":1}}')"
               test "$status" = "400"
               echo "Staging CSRF-protected invalid-cart POST returned expected HTTP 400."
