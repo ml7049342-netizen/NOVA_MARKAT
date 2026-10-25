@@ -104,11 +104,26 @@ class CartTests(TestCase):
         self.assertEqual(Order.objects.count(), 0)
 
 
-class FakeCheckoutTests(CartTests):
+class FakeCheckoutTests(TestCase):
     """End-to-end checkout tests using only Django's temporary test database."""
 
     def setUp(self):
-        super().setUp()
+        self.seller = User.objects.create_user(
+            username="checkout-test-seller",
+            password="SafeTestPassword-2026!",
+            role="seller",
+            is_verified=True,
+        )
+        self.category = Category.objects.create(name="اختبار شراء")
+        self.product = Product.objects.create(
+            seller=self.seller,
+            category=self.category,
+            name="منتج شراء تجريبي",
+            description="منتج وهمي لاختبار إتمام الطلب",
+            price="1250.00",
+            stock=3,
+            active=True,
+        )
         self.buyer = User.objects.create_user(
             username="test-buyer",
             password="SafeTestPassword-2026!",
