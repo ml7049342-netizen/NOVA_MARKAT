@@ -131,6 +131,19 @@ class CartTests(TestCase):
         self.assertEqual(Order.objects.count(), 0)
 
 
+    def test_fake_api_cart_rejects_fractional_and_boolean_quantities(self):
+        for quantity in (2.5, True):
+            with self.subTest(quantity=quantity):
+                response = self.client.post(
+                    f"/api/cart/add/{self.product.pk}/",
+                    data=json.dumps({"quantity": quantity}),
+                    content_type="application/json",
+                )
+                self.assertEqual(response.status_code, 400)
+                self.assertEqual(self.client.session.get("cart", {}), {})
+                self.assertEqual(Order.objects.count(), 0)
+
+
 class FakeCheckoutTests(TestCase):
     """End-to-end checkout tests using only Django's temporary test database."""
 
@@ -203,6 +216,24 @@ class FakeCheckoutTests(TestCase):
     def test_fake_checkout_rejects_quantity_above_stock_without_order(self):
         session = self.client.session
         session["cart"] = {str(self.product.pk): 4}
+        session.save()
+        response = self.client.post(
+            reverse("checkout"),
+            {
+                "wilaya": "16",
+                "address": "عنوان اختبار غير حقيقي",
+                "phone": "0555123456",
+            },
+        )
+        self.assertRedirects(response, reverse("cart"), fetch_redirect_response=False)
+        self.assertEqual(Order.objects.count(), 0)
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.stock, 3)
+
+
+    def test_fake_checkout_rejects_boolean_quantity_without_order_or_stock_change(self):
+        session = self.client.session
+        session["cart"] = {str(self.product.pk): True}
         session.save()
         response = self.client.post(
             reverse("checkout"),
