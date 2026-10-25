@@ -27,6 +27,13 @@ class PublicPageTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn("User-agent: *", response.content.decode())
 
+    def test_service_worker_is_served_without_cache(self):
+        response = self.client.get("/sw.js")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("application/javascript", response["Content-Type"])
+        self.assertEqual(response["Cache-Control"], "no-cache")
+        self.assertIn("skipWaiting", response.content.decode())
+
 
 class CartTests(TestCase):
     def setUp(self):
