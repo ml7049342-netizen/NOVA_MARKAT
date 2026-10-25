@@ -1,4 +1,38 @@
-from django.http import HttpResponse
+from django.contrib.staticfiles.storage import staticfiles_storage
+from django.http import HttpResponse, HttpResponsePermanentRedirect, JsonResponse
+
+
+def favicon(request):
+    """Redirect to the manifest-hashed logo path produced by collectstatic."""
+    return HttpResponsePermanentRedirect(staticfiles_storage.url("logo.svg"))
+
+
+def web_manifest(request):
+    """Serve a PWA manifest whose icon URL matches the active static-file manifest."""
+    return JsonResponse(
+        {
+            "id": "/",
+            "name": "NOVA MARKAT",
+            "short_name": "NOVA",
+            "description": "سوق إلكتروني جزائري يجمع المشترين والبائعين والموردين وشركات التوصيل.",
+            "lang": "ar",
+            "dir": "rtl",
+            "start_url": "/",
+            "scope": "/",
+            "display": "standalone",
+            "background_color": "#080d15",
+            "theme_color": "#080d15",
+            "icons": [
+                {
+                    "src": staticfiles_storage.url("logo.svg"),
+                    "sizes": "any",
+                    "type": "image/svg+xml",
+                    "purpose": "any",
+                }
+            ],
+        },
+        headers={"Cache-Control": "no-cache"},
+    )
 
 
 def robots_txt(request):
