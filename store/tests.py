@@ -22,7 +22,7 @@ class PublicPageTests(TestCase):
     def test_favicon_redirects_to_hashed_static_logo(self):
         response = self.client.get("/favicon.ico")
         self.assertEqual(response.status_code, 301)
-        self.assertRegex(response["Location"], r"^/static/logo\\.[a-f0-9]+\\.svg$")
+        self.assertRegex(response["Location"], r"^/static/logo\.[a-f0-9]+\.svg$")
 
     def test_manifest_uses_the_hashed_static_logo_url(self):
         response = self.client.get(reverse("manifest"))
@@ -31,7 +31,7 @@ class PublicPageTests(TestCase):
         manifest = response.json()
         self.assertEqual(manifest["lang"], "ar")
         self.assertEqual(manifest["dir"], "rtl")
-        self.assertRegex(manifest["icons"][0]["src"], r"^/static/logo\\.[a-f0-9]+\\.svg$")
+        self.assertRegex(manifest["icons"][0]["src"], r"^/static/logo\.[a-f0-9]+\.svg$")
 
     def test_robots_txt_is_served(self):
         response = self.client.get("/robots.txt")
