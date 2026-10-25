@@ -7,3 +7,13 @@ def robots_txt(request):
         "User-agent: *\nAllow: /\n",
         content_type="text/plain; charset=utf-8",
     )
+
+
+def service_worker(request):
+    """Serve a minimal same-origin worker for clients that still request /sw.js."""
+    return HttpResponse(
+        "self.addEventListener('install', () => self.skipWaiting());\n"
+        "self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim()));\n",
+        content_type="application/javascript; charset=utf-8",
+        headers={"Cache-Control": "no-cache"},
+    )

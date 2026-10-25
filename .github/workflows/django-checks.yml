@@ -2,9 +2,9 @@ name: Django checks
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, fix/comprehensive-safe-review]
   push:
-    branches: ["fix/comprehensive-safe-review"]
+    branches: ["fix/comprehensive-safe-review", "fix/netlify-proxy-isolated-preview"]
 
 jobs:
   test:
