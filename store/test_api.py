@@ -78,6 +78,13 @@ class StorefrontApiTests(TestCase):
         response = self.post_json(reverse("api_cart_set"), {"items": {"999999": 1}})
         self.assertEqual(response.status_code, 400)
 
+    def test_cart_set_rejects_noncanonical_and_duplicate_product_ids(self):
+        for items in ({"01": 1}, {"1": 1, "01": 2}):
+            with self.subTest(items=items):
+                response = self.post_json(reverse("api_cart_set"), {"items": items})
+                self.assertEqual(response.status_code, 400)
+                self.assertEqual(self.client.session.get("cart", {}), {})
+
     def test_cart_get_restores_server_session_cart(self):
         session = self.client.session
         session["cart"] = {str(self.product.pk): 2, "999999": 1}
@@ -99,6 +106,20 @@ class StorefrontApiTests(TestCase):
             client=strict_client,
         )
         self.assertEqual(response.status_code, 403)
+
+    def test_csrf_token_allows_cart_mutation(self):
+        strict_client = Client(enforce_csrf_checks=True)
+        token_response = strict_client.get(reverse("api_csrf"))
+        self.assertEqual(token_response.status_code, 200)
+        token = token_response.json()["csrfToken"]
+        response = strict_client.post(
+            reverse("api_cart_add", args=[self.product.pk]),
+            data=json.dumps({"quantity": 1}),
+            content_type="application/json",
+            HTTP_X_CSRFTOKEN=token,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["quantity"], 1)
 
     def test_checkout_rejects_missing_product_without_creating_order(self):
         self.client.force_login(self.buyer)
