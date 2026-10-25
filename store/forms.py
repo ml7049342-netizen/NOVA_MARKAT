@@ -9,6 +9,12 @@ class RegisterForm(UserCreationForm):
     class Meta:
         model=User; fields=("username","email","phone","role","password1","password2")
 
+    def clean_email(self):
+        email = self.cleaned_data["email"].strip().lower()
+        if User.objects.filter(email__iexact=email).exists():
+            raise forms.ValidationError("هذا البريد الإلكتروني مستخدم بالفعل.")
+        return email
+
 class ProductForm(forms.ModelForm):
     class Meta:
         model=Product; fields=("name","category","description","price","stock","main_image","active")
