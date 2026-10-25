@@ -104,6 +104,33 @@ class CartTests(TestCase):
         self.assertEqual(Order.objects.count(), 0)
 
 
+    def test_add_to_cart_repairs_negative_session_quantity(self):
+        session = self.client.session
+        session["cart"] = {str(self.product.pk): -4}
+        session.save()
+
+        response = self.client.post(reverse("add_to_cart", args=[self.product.pk]))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(self.client.session["cart"], {str(self.product.pk): 1})
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.stock, 3)
+        self.assertEqual(Order.objects.count(), 0)
+
+    def test_add_to_cart_clamps_stale_quantity_to_current_stock(self):
+        session = self.client.session
+        session["cart"] = {str(self.product.pk): 99}
+        session.save()
+
+        response = self.client.post(reverse("add_to_cart", args=[self.product.pk]))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(self.client.session["cart"], {str(self.product.pk): 3})
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.stock, 3)
+        self.assertEqual(Order.objects.count(), 0)
+
+
 class FakeCheckoutTests(TestCase):
     """End-to-end checkout tests using only Django's temporary test database."""
 
