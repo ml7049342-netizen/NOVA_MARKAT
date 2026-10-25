@@ -247,3 +247,31 @@ class FakeCheckoutTests(TestCase):
         self.assertEqual(Order.objects.count(), 0)
         self.product.refresh_from_db()
         self.assertEqual(self.product.stock, 3)
+
+    def test_fake_checkout_rejects_invalid_wilaya_without_order_or_stock_change(self):
+        response = self.client.post(
+            reverse("checkout"),
+            {
+                "wilaya": "999",
+                "address": "عنوان اختبار غير حقيقي",
+                "phone": "0555123456",
+            },
+        )
+        self.assertRedirects(response, reverse("checkout"), fetch_redirect_response=False)
+        self.assertEqual(Order.objects.count(), 0)
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.stock, 3)
+
+    def test_fake_checkout_rejects_empty_address_without_order_or_stock_change(self):
+        response = self.client.post(
+            reverse("checkout"),
+            {
+                "wilaya": "16",
+                "address": "   ",
+                "phone": "0555123456",
+            },
+        )
+        self.assertRedirects(response, reverse("checkout"), fetch_redirect_response=False)
+        self.assertEqual(Order.objects.count(), 0)
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.stock, 3)
