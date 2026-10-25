@@ -61,18 +61,29 @@ def _parse_json_body(request):
     return payload if isinstance(payload, dict) else None
 
 
+def _strict_int(value):
+    """Parse an integer without silently truncating floats or accepting booleans."""
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str) and value.isdecimal():
+        try:
+            return int(value)
+        except (ValueError, OverflowError):
+            return None
+    return None
+
+
 def _session_cart(request):
     raw_cart = request.session.get("cart", {})
     if not isinstance(raw_cart, dict):
         return {}
     clean = {}
     for raw_id, raw_quantity in raw_cart.items():
-        try:
-            product_id = int(raw_id)
-            quantity = int(raw_quantity)
-        except (ValueError, TypeError, OverflowError):
-            continue
-        if product_id > 0 and 1 <= quantity <= MAX_CART_QUANTITY:
+        product_id = _strict_int(raw_id)
+        quantity = _strict_int(raw_quantity)
+        if product_id is not None and quantity is not None and product_id > 0 and 1 <= quantity <= MAX_CART_QUANTITY:
             clean[str(product_id)] = quantity
     return clean
 
@@ -86,11 +97,8 @@ def cart_add(request, pk):
     if payload is None:
         return JsonResponse({"error": "بيانات الطلب غير صالحة."}, status=400)
     raw_quantity = payload.get("quantity", 1)
-    if isinstance(raw_quantity, bool):
-        return JsonResponse({"error": "الكمية غير صالحة."}, status=400)
-    try:
-        quantity = int(raw_quantity)
-    except (ValueError, TypeError, OverflowError):
+    quantity = _strict_int(raw_quantity)
+    if quantity is None:
         return JsonResponse({"error": "الكمية غير صالحة."}, status=400)
     if quantity < 1 or quantity > MAX_CART_QUANTITY:
         return JsonResponse({"error": "الكمية خارج الحد المسموح."}, status=400)
@@ -138,9 +146,8 @@ def cart_set(request):
             return JsonResponse({"error": "معرّف المنتج غير صالح."}, status=400)
         if product_id <= 0 or isinstance(raw_quantity, bool):
             return JsonResponse({"error": "بيانات منتج غير صالحة."}, status=400)
-        try:
-            quantity = int(raw_quantity)
-        except (ValueError, TypeError, OverflowError):
+        quantity = _strict_int(raw_quantity)
+        if quantity is None:
             return JsonResponse({"error": "الكمية غير صالحة."}, status=400)
         if quantity == 0:
             continue
