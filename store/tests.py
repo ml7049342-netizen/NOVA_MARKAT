@@ -332,3 +332,44 @@ class FakeCheckoutTests(TestCase):
         self.product.refresh_from_db()
         self.assertEqual(self.product.stock, 3)
 
+
+
+class RegistrationEmailValidationTests(TestCase):
+    def test_duplicate_email_is_rejected_case_insensitively(self):
+        from store.forms import RegisterForm
+
+        User.objects.create_user(
+            username="existing-email-user",
+            email="customer@example.com",
+            password="SafeTestPassword-2026!",
+        )
+        form = RegisterForm(data={
+            "username": "new-email-user",
+            "email": " CUSTOMER@example.com ",
+            "phone": "0551234567",
+            "role": "buyer",
+            "password1": "AnotherSafePassword-2026!",
+            "password2": "AnotherSafePassword-2026!",
+        })
+        self.assertFalse(form.is_valid())
+        self.assertIn("email", form.errors)
+
+
+class CommercialRoleApprovalTests(TestCase):
+    def setUp(self):
+        self.seller = User.objects.create_user(
+            username="pending-approval-seller",
+            password="SafeTestPassword-2026!",
+            role="seller",
+            is_verified=False,
+        )
+        self.client.force_login(self.seller)
+
+    def test_unapproved_seller_dashboard_does_not_open(self):
+        response = self.client.get(reverse("dashboard"))
+        self.assertRedirects(response, reverse("home"))
+        self.assertContains(response, "بانتظار اعتماد", status_code=200)
+
+    def test_unapproved_seller_cannot_open_product_creation(self):
+        response = self.client.get(reverse("seller_product_add"))
+        self.assertRedirects(response, reverse("home"))
