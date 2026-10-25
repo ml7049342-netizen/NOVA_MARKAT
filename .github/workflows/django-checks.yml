@@ -39,3 +39,41 @@ jobs:
         run: python manage.py test --verbosity 2
       - name: Verify migration state
         run: python manage.py makemigrations --check --dry-run
+
+  staging-smoke:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for isolated staging routes and validate responses
+        env:
+          BASE_URL: https://nova-markat-repair-test.onrender.com
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 18); do
+            if curl --fail --silent --show-error --location "$BASE_URL/" -o /tmp/home.html \
+              && curl --fail --silent --show-error --location "$BASE_URL/robots.txt" -o /tmp/robots.txt \
+              && curl --fail --silent --show-error --location "$BASE_URL/sw.js" -o /tmp/sw.js \
+              && curl --fail --silent --show-error --location "$BASE_URL/api/csrf/" -o /tmp/csrf.json \
+              && curl --fail --silent --show-error --location "$BASE_URL/api/products/" -o /tmp/products.json \
+              && curl --fail --silent --show-error --location "$BASE_URL/api/delivery-companies/" -o /tmp/delivery.json; then
+              grep -q "User-agent: \*" /tmp/robots.txt
+              grep -q "skipWaiting" /tmp/sw.js
+              python - <<'PY'
+          import json
+          from pathlib import Path
+
+          csrf = json.loads(Path("/tmp/csrf.json").read_text())
+          products = json.loads(Path("/tmp/products.json").read_text())
+          delivery = json.loads(Path("/tmp/delivery.json").read_text())
+          assert csrf.get("csrfToken"), "CSRF token missing"
+          assert isinstance(products.get("products"), list), "Product API response invalid"
+          assert isinstance(delivery.get("companies"), list), "Delivery API response invalid"
+          print("Staging smoke checks passed: homepage, robots, service worker, CSRF, products, delivery companies.")
+          PY
+              exit 0
+            fi
+            echo "Staging is not ready yet (attempt $attempt/18); retrying in 10 seconds."
+            sleep 10
+          done
+          echo "Staging smoke checks failed: routes did not all return valid responses."
+          exit 1
