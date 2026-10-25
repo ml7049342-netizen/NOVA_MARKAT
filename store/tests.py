@@ -12,6 +12,8 @@ class PublicPageTests(TestCase):
     def test_homepage_returns_ok(self):
         response = self.client.get(reverse("home"))
         self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'rel="manifest"')
+        self.assertContains(response, 'navigator.serviceWorker.register("/sw.js")')
 
     def test_delivery_directory_returns_ok(self):
         response = self.client.get(reverse("delivery_companies"))
