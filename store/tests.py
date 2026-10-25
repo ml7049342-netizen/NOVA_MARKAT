@@ -368,7 +368,8 @@ class CommercialRoleApprovalTests(TestCase):
     def test_unapproved_seller_dashboard_does_not_open(self):
         response = self.client.get(reverse("dashboard"))
         self.assertRedirects(response, reverse("home"))
-        self.assertContains(response, "بانتظار اعتماد", status_code=200)
+        home_response = self.client.get(reverse("home"))
+        self.assertContains(home_response, "بانتظار اعتماد")
 
     def test_unapproved_seller_cannot_open_product_creation(self):
         response = self.client.get(reverse("seller_product_add"))
