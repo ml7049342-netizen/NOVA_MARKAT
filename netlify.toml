@@ -1,8 +1,3 @@
 [build]
   publish = "public"
-
-[[redirects]]
-  from = "/*"
-  to = "https://nova-markat.onrender.com/:splat"
-  status = 200
-  force = true
+  command = "mkdir -p public && if [ \"$CONTEXT\" = \"production\" ]; then cp netlify/redirects-production public/_redirects; else cp netlify/redirects-staging public/_redirects; fi"

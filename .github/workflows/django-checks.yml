@@ -1,0 +1,101 @@
+name: Django checks
+
+on:
+  pull_request:
+    branches: [main, fix/comprehensive-safe-review]
+  push:
+    branches: ["fix/comprehensive-safe-review", "fix/netlify-proxy-isolated-preview"]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      DEBUG: "True"
+      SECRET_KEY: "ci-only-not-a-production-secret"
+      ALLOWED_HOSTS: "localhost,127.0.0.1,testserver"
+      DATABASE_URL: "sqlite:///db.sqlite3"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Django system check
+        run: python manage.py check
+      - name: Django deployment security check
+        env:
+          DEBUG: "False"
+          SECRET_KEY: "ci-only-long-test-key-0123456789-abcdefghijklmnopqrstuvwxyz-ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+          ALLOWED_HOSTS: "localhost,127.0.0.1,testserver"
+          DATABASE_URL: "sqlite:///db.sqlite3"
+        run: python manage.py check --deploy --fail-level WARNING
+      - name: Collect static files
+        run: python manage.py collectstatic --noinput
+      - name: Apply committed migrations to temporary test database
+        run: python manage.py migrate --noinput
+      - name: Run regression and API tests
+        run: python manage.py test --verbosity 2
+      - name: Verify migration state
+        run: python manage.py makemigrations --check --dry-run
+      - name: Verify production and staging proxy targets
+        run: |
+          grep -Fqx '/* https://nova-markat.onrender.com/:splat 200!' netlify/redirects-production
+          grep -Fqx '/* https://nova-markat-isolated-test.onrender.com/:splat 200!' netlify/redirects-staging
+          test "$(cat netlify/redirects-production)" != "$(cat netlify/redirects-staging)"
+
+  staging-smoke:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for isolated staging routes and validate responses
+        env:
+          BASE_URL: https://nova-markat-isolated-test.onrender.com
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 18); do
+            if curl --connect-timeout 5 --max-time 15 --fail --silent --show-error --location "$BASE_URL/" -o /tmp/home.html \
+              && curl --connect-timeout 5 --max-time 15 --fail --silent --show-error --location "$BASE_URL/robots.txt" -o /tmp/robots.txt \
+              && curl --connect-timeout 5 --max-time 15 --fail --silent --show-error --location "$BASE_URL/sw.js" -o /tmp/sw.js \
+              && curl --connect-timeout 5 --max-time 15 --fail --silent --show-error --location --cookie-jar /tmp/cookies.txt "$BASE_URL/api/csrf/" -o /tmp/csrf.json \
+              && curl --connect-timeout 5 --max-time 15 --fail --silent --show-error --location "$BASE_URL/api/products/" -o /tmp/products.json \
+              && curl --connect-timeout 5 --max-time 15 --fail --silent --show-error --location "$BASE_URL/api/delivery-companies/" -o /tmp/delivery.json \
+              && curl --connect-timeout 5 --max-time 15 --fail --silent --show-error --location "$BASE_URL/manifest.json" -o /tmp/manifest.json \
+              && curl --connect-timeout 5 --max-time 15 --fail --silent --show-error --location "$BASE_URL/favicon.ico" -o /tmp/favicon.svg; then
+              grep -q "User-agent: \*" /tmp/robots.txt
+              grep -q "skipWaiting" /tmp/sw.js
+              grep -q "<svg" /tmp/favicon.svg
+              python - <<'PY'
+          import json
+          from pathlib import Path
+
+          csrf = json.loads(Path("/tmp/csrf.json").read_text())
+          products = json.loads(Path("/tmp/products.json").read_text())
+          delivery = json.loads(Path("/tmp/delivery.json").read_text())
+          manifest = json.loads(Path("/tmp/manifest.json").read_text())
+          assert csrf.get("csrfToken"), "CSRF token missing"
+          assert isinstance(products.get("products"), list), "Product API response invalid"
+          assert isinstance(delivery.get("companies"), list), "Delivery API response invalid"
+          assert manifest.get("lang") == "ar" and manifest.get("dir") == "rtl", "PWA manifest locale/direction invalid"
+          icon = manifest.get("icons", [{}])[0].get("src", "")
+          assert icon.startswith("/static/logo.") and icon.endswith(".svg"), "Manifest icon URL is not hashed"
+          print("Staging smoke checks passed: homepage, robots, service worker, CSRF, products, delivery companies, manifest, favicon.")
+          PY
+              token="$(python -c 'import json; print(json.load(open("/tmp/csrf.json"))["csrfToken"])')"
+              status="$(curl --connect-timeout 5 --max-time 15 --silent --show-error --output /tmp/cart-post.json --write-out '%{http_code}' \
+                --cookie /tmp/cookies.txt \
+                --request POST "$BASE_URL/api/cart/" \
+                --header "Content-Type: application/json" \
+                --header "X-CSRFToken: $token" \
+                --header "Origin: https://nova-markat-dz.netlify.app" \
+                --data '{"items":{"99999999":1}}')"
+              test "$status" = "400"
+              echo "Staging CSRF-protected invalid-cart POST returned expected HTTP 400."
+              exit 0
+            fi
+            echo "Staging is not ready yet (attempt $attempt/18); retrying in 10 seconds."
+            sleep 10
+          done
+          echo "Staging smoke checks failed: routes did not all return valid responses."
+          exit 1
