@@ -60,28 +60,40 @@ jobs:
             local path="$1"
             local output="$2"
             local status
-            status="$(curl --connect-timeout 5 --max-time 15 --silent --show-error \
+            status="$(curl --connect-timeout 5 --max-time 10 --silent --show-error \
               --location --output "$output" --write-out '%{http_code}' \
               "$BASE_URL$path" || true)"
             printf 'GET %-28s HTTP %s\n' "$path" "${status:-000}"
+            if [[ "$status" == "404" ]]; then
+              echo "::error title=Staging route missing::$path returned 404; verify the isolated Render service is deployed from fix/comprehensive-safe-review."
+              permanent_failure=1
+              return 1
+            fi
             if [[ "$status" != "200" ]]; then
-              echo "::error title=Staging route failed::$path returned HTTP ${status:-000}"
+              echo "::warning title=Staging route unavailable::$path returned HTTP ${status:-000}"
+              transient_failure=1
               return 1
             fi
           }
 
-          for attempt in $(seq 1 18); do
-            failed=0
-            check_get "/" /tmp/home.html || failed=1
-            check_get "/robots.txt" /tmp/robots.txt || failed=1
-            check_get "/sw.js" /tmp/sw.js || failed=1
-            check_get "/api/csrf/" /tmp/csrf.json || failed=1
-            check_get "/api/products/" /tmp/products.json || failed=1
-            check_get "/api/delivery-companies/" /tmp/delivery.json || failed=1
-            check_get "/manifest.json" /tmp/manifest.json || failed=1
-            check_get "/favicon.ico" /tmp/favicon.svg || failed=1
+          for attempt in $(seq 1 6); do
+            permanent_failure=0
+            transient_failure=0
+            check_get "/" /tmp/home.html || true
+            check_get "/robots.txt" /tmp/robots.txt || true
+            check_get "/sw.js" /tmp/sw.js || true
+            check_get "/api/csrf/" /tmp/csrf.json || true
+            check_get "/api/products/" /tmp/products.json || true
+            check_get "/api/delivery-companies/" /tmp/delivery.json || true
+            check_get "/manifest.json" /tmp/manifest.json || true
+            check_get "/favicon.ico" /tmp/favicon.svg || true
 
-            if [[ "$failed" -eq 0 ]]; then
+            if [[ "$permanent_failure" -eq 1 ]]; then
+              echo "::error title=Staging smoke checks stopped::HTTP 404 is not retried. Deploy the repair branch to the isolated staging service, then rerun this workflow."
+              exit 1
+            fi
+
+            if [[ "$transient_failure" -eq 0 ]]; then
               grep -q "User-agent: \\*" /tmp/robots.txt
               grep -q "skipWaiting" /tmp/sw.js
               grep -q "<svg" /tmp/favicon.svg
@@ -102,7 +114,7 @@ jobs:
           print("Staging smoke checks passed: homepage, robots, service worker, CSRF, products, delivery companies, manifest, favicon.")
           PY
               token="$(python -c 'import json; print(json.load(open("/tmp/csrf.json"))["csrfToken"])')"
-              status="$(curl --connect-timeout 5 --max-time 15 --silent --show-error --output /tmp/cart-post.json --write-out '%{http_code}' \
+              status="$(curl --connect-timeout 5 --max-time 10 --silent --show-error --output /tmp/cart-post.json --write-out '%{http_code}' \
                 --cookie /tmp/cookies.txt \
                 --request POST "$BASE_URL/api/cart/" \
                 --header "Content-Type: application/json" \
@@ -117,9 +129,9 @@ jobs:
               exit 0
             fi
 
-            echo "Staging routes are not all ready (attempt $attempt/18); retrying in 10 seconds."
+            echo "Staging has transient errors (attempt $attempt/6); retrying in 10 seconds."
             sleep 10
           done
 
-          echo "::error title=Staging smoke checks failed::Review the route-by-route HTTP status lines above."
+          echo "::error title=Staging smoke checks failed::One or more routes remained unavailable after six attempts."
           exit 1
