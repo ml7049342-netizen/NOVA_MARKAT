@@ -49,21 +49,40 @@ jobs:
     needs: test
     runs-on: ubuntu-latest
     steps:
-      - name: Wait for isolated staging routes and validate responses
+      - name: Diagnose isolated staging routes
         env:
           BASE_URL: https://nova-markat-isolated-test.onrender.com
         run: |
           set -euo pipefail
+          BASE_URL="${BASE_URL%/}"
+
+          check_get() {
+            local path="$1"
+            local output="$2"
+            local status
+            status="$(curl --connect-timeout 5 --max-time 15 --silent --show-error \
+              --location --output "$output" --write-out '%{http_code}' \
+              "$BASE_URL$path" || true)"
+            printf 'GET %-28s HTTP %s\n' "$path" "${status:-000}"
+            if [[ "$status" != "200" ]]; then
+              echo "::error title=Staging route failed::$path returned HTTP ${status:-000}"
+              return 1
+            fi
+          }
+
           for attempt in $(seq 1 18); do
-            if curl --connect-timeout 5 --max-time 15 --fail --silent --show-error --location "$BASE_URL/" -o /tmp/home.html \
-              && curl --connect-timeout 5 --max-time 15 --fail --silent --show-error --location "$BASE_URL/robots.txt" -o /tmp/robots.txt \
-              && curl --connect-timeout 5 --max-time 15 --fail --silent --show-error --location "$BASE_URL/sw.js" -o /tmp/sw.js \
-              && curl --connect-timeout 5 --max-time 15 --fail --silent --show-error --location --cookie-jar /tmp/cookies.txt "$BASE_URL/api/csrf/" -o /tmp/csrf.json \
-              && curl --connect-timeout 5 --max-time 15 --fail --silent --show-error --location "$BASE_URL/api/products/" -o /tmp/products.json \
-              && curl --connect-timeout 5 --max-time 15 --fail --silent --show-error --location "$BASE_URL/api/delivery-companies/" -o /tmp/delivery.json \
-              && curl --connect-timeout 5 --max-time 15 --fail --silent --show-error --location "$BASE_URL/manifest.json" -o /tmp/manifest.json \
-              && curl --connect-timeout 5 --max-time 15 --fail --silent --show-error --location "$BASE_URL/favicon.ico" -o /tmp/favicon.svg; then
-              grep -q "User-agent: \*" /tmp/robots.txt
+            failed=0
+            check_get "/" /tmp/home.html || failed=1
+            check_get "/robots.txt" /tmp/robots.txt || failed=1
+            check_get "/sw.js" /tmp/sw.js || failed=1
+            check_get "/api/csrf/" /tmp/csrf.json || failed=1
+            check_get "/api/products/" /tmp/products.json || failed=1
+            check_get "/api/delivery-companies/" /tmp/delivery.json || failed=1
+            check_get "/manifest.json" /tmp/manifest.json || failed=1
+            check_get "/favicon.ico" /tmp/favicon.svg || failed=1
+
+            if [[ "$failed" -eq 0 ]]; then
+              grep -q "User-agent: \\*" /tmp/robots.txt
               grep -q "skipWaiting" /tmp/sw.js
               grep -q "<svg" /tmp/favicon.svg
               python - <<'PY'
@@ -89,13 +108,18 @@ jobs:
                 --header "Content-Type: application/json" \
                 --header "X-CSRFToken: $token" \
                 --header "Origin: https://nova-markat-dz.netlify.app" \
-                --data '{"items":{"99999999":1}}')"
-              test "$status" = "400"
-              echo "Staging CSRF-protected invalid-cart POST returned expected HTTP 400."
+                --data '{"items":{"99999999":1}}' || true)"
+              echo "POST /api/cart/ returned HTTP ${status:-000} (expected 400)."
+              if [[ "$status" != "400" ]]; then
+                echo "::error title=Staging cart validation failed::Expected HTTP 400, got ${status:-000}"
+                exit 1
+              fi
               exit 0
             fi
-            echo "Staging is not ready yet (attempt $attempt/18); retrying in 10 seconds."
+
+            echo "Staging routes are not all ready (attempt $attempt/18); retrying in 10 seconds."
             sleep 10
           done
-          echo "Staging smoke checks failed: routes did not all return valid responses."
+
+          echo "::error title=Staging smoke checks failed::Review the route-by-route HTTP status lines above."
           exit 1
