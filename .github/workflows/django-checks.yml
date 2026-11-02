@@ -60,8 +60,12 @@ jobs:
             local path="$1"
             local output="$2"
             local status
+            local cookie_args=()
+            if [[ "$path" == "/api/csrf/" ]]; then
+              cookie_args=(--cookie-jar /tmp/cookies.txt)
+            fi
             status="$(curl --connect-timeout 5 --max-time 10 --silent --show-error \
-              --location --output "$output" --write-out '%{http_code}' \
+              "${cookie_args[@]}" --location --output "$output" --write-out '%{http_code}' \
               "$BASE_URL$path" || true)"
             printf 'GET %-28s HTTP %s\n' "$path" "${status:-000}"
             if [[ "$status" == "404" ]]; then
