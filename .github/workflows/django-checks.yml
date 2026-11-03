@@ -46,16 +46,17 @@ jobs:
       - name: Verify production and staging proxy targets
         run: |
           grep -Fqx '/* https://nova-markat.onrender.com/:splat 200!' netlify/redirects-production
-          grep -Fqx '/* https://nova-markat-ugzw.onrender.com/:splat 200!' netlify/redirects-staging
+          grep -Fqx '/* https://nova-markat-isolated-test.onrender.com/:splat 200!' netlify/redirects-staging
           test "$(cat netlify/redirects-production)" != "$(cat netlify/redirects-staging)"
 
   staging-smoke:
+    if: ${{ vars.STAGING_BASE_URL != '' && vars.STAGING_DB_ISOLATED == 'true' }}
     needs: test
     runs-on: ubuntu-latest
     steps:
       - name: Diagnose isolated staging routes
         env:
-          BASE_URL: https://nova-markat-ugzw.onrender.com
+          BASE_URL: ${{ vars.STAGING_BASE_URL }}
         run: |
           set -euo pipefail
           BASE_URL="${BASE_URL%/}"
