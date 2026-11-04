@@ -1,0 +1,147 @@
+name: Django checks
+
+on:
+  pull_request:
+    branches: [main, fix/comprehensive-safe-review]
+  push:
+    branches: ["fix/comprehensive-safe-review", "fix/netlify-proxy-isolated-preview"]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12.8", "3.13.5"]
+    env:
+      DEBUG: "True"
+      SECRET_KEY: "ci-only-not-a-production-secret"
+      ALLOWED_HOSTS: "localhost,127.0.0.1,testserver"
+      DATABASE_URL: "sqlite:///db.sqlite3"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Django system check
+        run: python manage.py check
+      - name: Django deployment security check
+        env:
+          DEBUG: "False"
+          SECRET_KEY: "ci-only-long-test-key-0123456789-abcdefghijklmnopqrstuvwxyz-ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+          ALLOWED_HOSTS: "localhost,127.0.0.1,testserver"
+          DATABASE_URL: "sqlite:///db.sqlite3"
+        run: python manage.py check --deploy --fail-level WARNING
+      - name: Collect static files
+        run: python manage.py collectstatic --noinput
+      - name: Apply committed migrations to temporary test database
+        run: python manage.py migrate --noinput
+      - name: Run regression and API tests
+        run: python manage.py test --verbosity 2
+      - name: Verify migration state
+        run: python manage.py makemigrations --check --dry-run
+      - name: Verify production and staging proxy targets
+        run: |
+          grep -Fqx '/* https://nova-markat.onrender.com/:splat 200!' netlify/redirects-production
+          grep -Fqx '/* https://nova-markat-isolated-test.onrender.com/:splat 200!' netlify/redirects-staging
+          test "$(cat netlify/redirects-production)" != "$(cat netlify/redirects-staging)"
+
+  staging-smoke:
+    if: ${{ vars.STAGING_BASE_URL != '' && vars.STAGING_DB_ISOLATED == 'true' && vars.STAGING_ORIGIN != '' }}
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Diagnose isolated staging routes
+        env:
+          BASE_URL: ${{ vars.STAGING_BASE_URL }}
+          ORIGIN_URL: ${{ vars.STAGING_ORIGIN }}
+        run: |
+          set -euo pipefail
+          BASE_URL="${BASE_URL%/}"
+
+          check_get() {
+            local path="$1"
+            local output="$2"
+            local status
+            local cookie_args=()
+            if [[ "$path" == "/api/csrf/" ]]; then
+              cookie_args=(--cookie-jar /tmp/cookies.txt)
+            fi
+            status="$(curl --connect-timeout 5 --max-time 10 --silent --show-error \
+              "${cookie_args[@]}" --location --output "$output" --write-out '%{http_code}' \
+              "$BASE_URL$path" || true)"
+            printf 'GET %-28s HTTP %s\n' "$path" "${status:-000}"
+            if [[ "$status" == "404" ]]; then
+              echo "::error title=Staging route missing::$path returned 404; verify the isolated Render service is deployed from fix/comprehensive-safe-review."
+              permanent_failure=1
+              return 1
+            fi
+            if [[ "$status" != "200" ]]; then
+              echo "::warning title=Staging route unavailable::$path returned HTTP ${status:-000}"
+              transient_failure=1
+              return 1
+            fi
+          }
+
+          for attempt in $(seq 1 6); do
+            permanent_failure=0
+            transient_failure=0
+            check_get "/" /tmp/home.html || true
+            check_get "/robots.txt" /tmp/robots.txt || true
+            check_get "/sw.js" /tmp/sw.js || true
+            check_get "/api/csrf/" /tmp/csrf.json || true
+            check_get "/api/products/" /tmp/products.json || true
+            check_get "/api/delivery-companies/" /tmp/delivery.json || true
+            check_get "/manifest.json" /tmp/manifest.json || true
+            check_get "/favicon.ico" /tmp/favicon.svg || true
+
+            if [[ "$permanent_failure" -eq 1 ]]; then
+              echo "::error title=Staging smoke checks stopped::HTTP 404 is not retried. Deploy the repair branch to the isolated staging service, then rerun this workflow."
+              exit 1
+            fi
+
+            if [[ "$transient_failure" -eq 0 ]]; then
+              grep -q "User-agent: \\*" /tmp/robots.txt
+              grep -q "skipWaiting" /tmp/sw.js
+              grep -q "<svg" /tmp/favicon.svg
+              python - <<'PY'
+          import json
+          from pathlib import Path
+
+          csrf = json.loads(Path("/tmp/csrf.json").read_text())
+          products = json.loads(Path("/tmp/products.json").read_text())
+          delivery = json.loads(Path("/tmp/delivery.json").read_text())
+          manifest = json.loads(Path("/tmp/manifest.json").read_text())
+          assert csrf.get("csrfToken"), "CSRF token missing"
+          assert isinstance(products.get("products"), list), "Product API response invalid"
+          assert isinstance(delivery.get("companies"), list), "Delivery API response invalid"
+          assert manifest.get("lang") == "ar" and manifest.get("dir") == "rtl", "PWA manifest locale/direction invalid"
+          icon = manifest.get("icons", [{}])[0].get("src", "")
+          assert icon.startswith("/static/logo.") and icon.endswith(".svg"), "Manifest icon URL is not hashed"
+          print("Staging smoke checks passed: homepage, robots, service worker, CSRF, products, delivery companies, manifest, favicon.")
+          PY
+              token="$(python -c 'import json; print(json.load(open("/tmp/csrf.json"))["csrfToken"])')"
+              status="$(curl --connect-timeout 5 --max-time 10 --silent --show-error --output /tmp/cart-post.json --write-out '%{http_code}' \
+                --cookie /tmp/cookies.txt \
+                --request POST "$BASE_URL/api/cart/" \
+                --header "Content-Type: application/json" \
+                --header "X-CSRFToken: $token" \
+                --header "Origin: $ORIGIN_URL" \
+                --data '{"items":{"99999999":1}}' || true)"
+              echo "POST /api/cart/ returned HTTP ${status:-000} (expected 400)."
+              if [[ "$status" != "400" ]]; then
+                echo "::error title=Staging cart validation failed::Expected HTTP 400, got ${status:-000}"
+                exit 1
+              fi
+              exit 0
+            fi
+
+            echo "Staging has transient errors (attempt $attempt/6); retrying in 10 seconds."
+            sleep 10
+          done
+
+          echo "::error title=Staging smoke checks failed::One or more routes remained unavailable after six attempts."
+          exit 1
