@@ -50,13 +50,14 @@ jobs:
           test "$(cat netlify/redirects-production)" != "$(cat netlify/redirects-staging)"
 
   staging-smoke:
-    if: ${{ vars.STAGING_BASE_URL != '' && vars.STAGING_DB_ISOLATED == 'true' }}
+    if: ${{ vars.STAGING_BASE_URL != '' && vars.STAGING_DB_ISOLATED == 'true' && vars.STAGING_ORIGIN != '' }}
     needs: test
     runs-on: ubuntu-latest
     steps:
       - name: Diagnose isolated staging routes
         env:
           BASE_URL: ${{ vars.STAGING_BASE_URL }}
+          ORIGIN_URL: ${{ vars.STAGING_ORIGIN }}
         run: |
           set -euo pipefail
           BASE_URL="${BASE_URL%/}"
@@ -128,7 +129,7 @@ jobs:
                 --request POST "$BASE_URL/api/cart/" \
                 --header "Content-Type: application/json" \
                 --header "X-CSRFToken: $token" \
-                --header "Origin: https://nova-markat-dz.netlify.app" \
+                --header "Origin: $ORIGIN_URL" \
                 --data '{"items":{"99999999":1}}' || true)"
               echo "POST /api/cart/ returned HTTP ${status:-000} (expected 400)."
               if [[ "$status" != "400" ]]; then
