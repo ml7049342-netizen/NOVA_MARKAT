@@ -31,7 +31,10 @@ class PublicPageTests(TestCase):
         manifest = response.json()
         self.assertEqual(manifest["lang"], "ar")
         self.assertEqual(manifest["dir"], "rtl")
-        self.assertRegex(manifest["icons"][0]["src"], r"^/static/logo\.[a-f0-9]+\.svg$")
+        svg_icon = next(
+            icon for icon in manifest["icons"] if icon.get("type") == "image/svg+xml"
+        )
+        self.assertRegex(svg_icon["src"], r"^/static/logo\.[a-f0-9]+\.svg$")
 
     def test_robots_txt_is_served(self):
         response = self.client.get("/robots.txt")
