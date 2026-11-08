@@ -8,7 +8,7 @@ def favicon(request):
 
 
 def web_manifest(request):
-    """Serve a PWA manifest whose icon URL matches the active static-file manifest."""
+    """Serve PWA icons in Chromium-required sizes plus the scalable SVG logo."""
     return JsonResponse(
         {
             "id": "/",
@@ -24,11 +24,23 @@ def web_manifest(request):
             "theme_color": "#080d15",
             "icons": [
                 {
+                    "src": staticfiles_storage.url("logo-192.png"),
+                    "sizes": "192x192",
+                    "type": "image/png",
+                    "purpose": "any",
+                },
+                {
+                    "src": staticfiles_storage.url("logo-512.png"),
+                    "sizes": "512x512",
+                    "type": "image/png",
+                    "purpose": "any",
+                },
+                {
                     "src": staticfiles_storage.url("logo.svg"),
                     "sizes": "any",
                     "type": "image/svg+xml",
                     "purpose": "any",
-                }
+                },
             ],
         },
         headers={"Cache-Control": "no-cache"},
